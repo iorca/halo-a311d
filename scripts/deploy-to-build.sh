@@ -64,6 +64,37 @@ echo "✓ config/sources/families/meson-g12b.conf"
 #   3. 用 LibreELEC 的，自动跟随上游更新
 
 # -----------------------------------------------------------------------------
+# 3. FIP blob —— 仅 gxlimg-full-mainline-uboot 分支需要
+#
+# armbian 的 amlogic-fip-blobs 扩展会把 retro98boy/amlogic-fip-blobs clone 到
+#   $SRC/cache/sources/amlogic-fip-blobs
+# 我们把本仓库 fip-blob/halo-a311d/ 拷进去（该仓库没有本板，故需自带）。
+#
+# blob 缺失时**不报错**：board conf 的 hook 会给出明确提示后 exit，
+# 这样 main 分支（LibreELEC 方案）完全不受影响。
+# -----------------------------------------------------------------------------
+BLOB_SRC="$REPO_ROOT/fip-blob/halo-a311d"
+BLOB_DST="$BUILD_DIR/cache/sources/amlogic-fip-blobs/halo-a311d"
+if [ -d "$BLOB_SRC" ]; then
+    mkdir -p "$BLOB_DST"
+    # 只拷 blob 本体（排除 README 等说明文件）
+    shopt -s nullglob
+    for pat in '*.USB' '*.usb' '*.img' '*.bin' 'mmcblk*boot*'; do
+        for f in "$BLOB_SRC"/$pat; do
+            cp -a "$f" "$BLOB_DST"/
+        done
+    done
+    shopt -u nullglob
+    n=$(find "$BLOB_DST" -type f | wc -l)
+    if [ "$n" -gt 0 ]; then
+        echo "✓ fip-blob/halo-a311d → amlogic-fip-blobs/halo-a311d  ($n 个文件)"
+        find "$BLOB_DST" -type f -printf '    %f (%s B)\n' 2>/dev/null || ls -la "$BLOB_DST"
+    else
+        echo "  (fip-blob/ 里没有 blob —— gxlimg 分支需要完整厂商 FIP，main 分支不需要)"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
 # 4. 内核 dts —— 目录名随内核大版本变，必须动态派生，不能写死
 #    BRANCH 决定目录： current → meson64-current
 #                       edge   → meson64-edge (上游路径可能不同)
