@@ -17,12 +17,17 @@
 #   armbian 支持增量编译，命中缓存后第二次快很多
 #
 # 手动触发可改target:
-#   target=kernel         只编内核 deb（默认）
-#   target=rootfs         只编 rootfs
-#   target=full_firmware  完整镜像（内核+rootfs+u-boot+固件）
+#   target=kernel    只编内核 deb（默认）
+#   target=uboot     只编 u-boot
+#   target=rootfs    只编 rootfs
+#   target=firmware  只编固件
+#   target=build     全部 artifact（**完整镜像在这里**，~2h）
 #
-# ⚠ armbian 没有 'image' artifact，传image 报 'Unknown argument image' / exit 43
-#   artifact 定义见 lib/functions/artifacts/artifact-*.sh
+# ⚠⚠ armbian 的 target 必须来自 lib/functions/cli/commands.sh 的别名表：
+#   kernel / kernel-dtb / uboot / rootfs / firmware / build / dts-check ...
+#   **没有 image，也没有 full_firmware**（那只是 artifact-*.sh 的函数名前缀，
+#   不能直接当命令用）。传错报 'Unknown argument xxx' + exit 43。
+#   完整镜像 = ./compile.sh build BOARD=halo-a311d
 # =============================================================================
 name: kernel-build
 
@@ -44,9 +49,11 @@ on:
         default: kernel
         type: choice
         options:
-          - kernel        # 只编内核 deb（~50 min）
-          - rootfs        # 只编 rootfs（armbian-base 文件系统）
-          - full_firmware # 内核 + rootfs + u-boot + 固件 → 完整镜像（~90 min）
+          - kernel    # 只编内核 deb（~50 min）
+          - uboot     # 只编 u-boot
+          - rootfs    # 只编 rootfs
+          - firmware  # 只编固件包
+          - build     # **全部 artifact**（含完整镜像，~2h）
   schedule:
     # 每周一早上 6 点增量重建（cron: '0 6 * * 1'）
     - cron: '0 6 * * 1'
