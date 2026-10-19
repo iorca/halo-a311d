@@ -34,23 +34,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dtc
+      - name: Verify toolchain (dtc usually preinstalled)
+        # ubuntu runner 镜像已预装 device-tree-compiler。
+        # 不要无条件 `apt-get install`：遇到"已是最新版"会返回非 0，
+        # 在 set -e 下直接把 job 打断（这正是第二次失败 exit code 2 的疑点）。
         run: |
-          set -eux
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq device-tree-compiler
-          # exit 127 就是这里没装上——显式验证，别让它静默过去
-          command -v dtc
+          set -eu
+          if ! command -v dtc >/dev/null 2>&1; then
+            echo "dtc 未预装，开始安装..."
+            sudo apt-get update -qq || true
+            sudo apt-get install -y -qq device-tree-compiler || true
+          fi
+          # 最终校验：缺命令就在这里明确报错，而不是让下一步莫名 exit 127
+          command -v dtc  || { echo "::error::dtc 缺失"; exit 1; }
+          command -v cpp || { echo "::error::cpp (gcc) 缺失"; exit 1; }
           dtc --version
-          command -v cpp
+          echo "cpp: $(cpp --version | head -1)"
 
       - name: Sparse-clone kernel dts
         run: |
-          set -eux
+          set -eu
           cd "$RUNNER_TEMP"
+          # blob:none 只取 commit/tree，对文件按需拉取，比整仓 clone 快得多
           git clone --depth 1 --filter=blob:none --sparse \
             "https://github.com/torvalds/linux.git" kernel
           cd kernel
+          # ⚠ include-prefixes 必须包含，否则 dt-bindings 头找不到，
+          #    会报 "GPIOAO_10 未定义" 这类假错误
           git sparse-checkout set \
             arch/arm64/boot/dts/amlogic \
             scripts/dtc/include-prefixes
@@ -69,6 +79,19 @@ jobs:
           cp "$GITHUB_WORKSPACE/dt/meson-halo-a311d-pcie.dts" "$D/"
 
           fail=0
+          # 先确认 dts 依赖链完整，避免 cpp 报一堆看不懂的错误
+          for req in meson-g12b-a311d.dts meson-g12b.dtsi meson-g12.dtsi \
+                     meson-g12-common.dtsi meson-g12b-s922x.dtsi; do
+            if [ ! -f "$D/$req" ]; then
+              echo "::error::缺少依赖 $D/$req"
+              exit 1
+            fi
+          done
+          if [ ! -d "$K/scripts/dtc/include-prefixes/dt-bindings" ]; then
+            echo "::error::缺少 dt-bindings 头目录"
+            exit 1
+          fi
+
           for f in meson-halo-a311d meson-halo-a311d-pcie; do
             echo "::group::compile $f.dtb"
             cpp -nostdinc \
