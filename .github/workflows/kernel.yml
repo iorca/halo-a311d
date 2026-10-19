@@ -136,14 +136,45 @@ jobs:
           dtc --version
           echo "arch: $(uname -m)"
 
+      # =====================================================================
+      # 三层缓存（实测耗时分布：拉源码 2min / 编译 45min / 打包 4min）
+      #
+      # 1) sources —— 源码 clone（内核树约 10GB）
+      #    ⚠ key **绝不能带 hashFiles('dt/**')**：改一次 dts 就整树失效重下。
+      #      改用 restore-keys 前缀匹配：源码变了 armbian 自己会增量 fetch，
+      #      缓存只负责省掉「首次 clone」那十几分钟。
+      # 2) apt —— 编译依赖（gcc、bc、flex、qemu-user-static 等）
+      #    key 带 runner 版本，避免系统升级后装不上旧包
+      # 3) ccache —— **编译产物缓存（省 45min 里的大部分）**
+      #    armbian 的 extensions/ccache.sh，设置 PRIVATE_CCACHE=yes 会把
+      #    CCACHE_DIR 放在 ${SRC}/cache/ccache，正好和sources 一起缓存。
+      #    只改 dts / config 时，45 分钟的编译能压到 5~10 分钟。
+      # =====================================================================
       - name: Cache armbian sources
         uses: actions/cache@v4
         with:
           path: armbian-build/cache/sources
-          key: arm-meson64-${{ env.BRANCH }}-${{ hashFiles('dt/**', 'config/**') }}
+          key: arm-sources-${{ env.BRANCH }}-${{ env.FAMILY }}-v3
           restore-keys: |
-            arm-meson64-${{ env.BRANCH }}-
-            arm-meson64-
+            arm-sources-${{ env.BRANCH }}-${{ env.FAMILY }}-
+            arm-sources-
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/apt
+            ~/.cache
+          key: apt-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/workflows/kernel.yml') }}
+          restore-keys: apt-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: armbian-build/cache/ccache
+          key: ccache-${{ env.BRANCH }}-${{ env.FAMILY }}-${{ hashFiles('dt/meson-halo-a311d.dts') }}
+          restore-keys: |
+            ccache-${{ env.BRANCH }}-${{ env.FAMILY }}-
 
       - name: Clone armbian/build
         run: |
@@ -205,6 +236,22 @@ jobs:
           # ⚠⚠ 必须禁交互 —— 'build' 会弹 dialog 菜单（内核配置选择），
           #   CI 里 stdin 不是 tty → "stdin is not a terminal. can't use dialog" + exit 43
           #   KERNEL_CONFIGURE=no 是 armbian 官方 config 模板里的推荐值
+          # ================================================================
+          # ccache —— 编译产物缓存（本次加速的主要手段）
+          #
+          # 上游依据 extensions/ccache.sh:
+          #   compile_prepare_vars__ccache() 会
+          #     export CCACHE="ccache"
+          #     export PATH="/usr/lib/ccache:${PATH}"   # 让 gcc/cc 走ccache
+          #   PRIVATE_CCACHE=yes 时把 CCACHE_DIR 放在 ${SRC}/cache/ccache
+          #   （正好落在 actions/cache 的缓存路径里）
+          #
+          # 效果：只改 dt/ 或 config/ 时，内核编译 45min → 5~10min
+          # ================================================================
+          export ENABLE_EXTENSIONS="ccache"
+          export PRIVATE_CCACHE=yes
+          export SHOW_CCACHE=yes
+          # ================================================================
           export KERNEL_CONFIGURE=no
           export BUILD_ONLY=""
           # ⚠⚠ build 有三个交互点，CI 里必须全部预设，否则弹 dialog 死掉：
@@ -234,6 +281,20 @@ jobs:
             ./compile.sh "$TGT" \
               BOARD="${{ env.BOARD }}" \
               BRANCH="${{ env.BRANCH }}"
+          fi
+
+      - name: ccache statistics
+        if: always()
+        run: |
+          set -eu
+          D="$GITHUB_WORKSPACE/armbian-build/cache/ccache"
+          if [ -d "$D" ]; then
+            echo "=== ccache dir: $(du -sh "$D" | cut -f1) ==="
+            CCACHE_DIR="$D" ccache --show-stats 2>/dev/null || \
+              echo "(ccache 命令不可用，但缓存目录已保存)"
+          else
+            echo "::warning::ccache 目录不存在 —— 扩展可能没生效"
+            echo "检查 armbian 是否识别 ENABLE_EXTENSIONS=ccache"
           fi
 
       - name: Collect artifacts
