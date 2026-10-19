@@ -87,6 +87,11 @@ jobs:
     name: Kernel (ARM64)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
+    # 发 GitHub Release 需要 contents: write。
+    # ⚠ 这个键**只能写在 workflow / job 级**，step 级写了 GitHub 会直接
+    #   报 "Unexpected value 'permissions'" 且整个 workflow 无法解析（不跑任何 job）。
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -401,10 +406,9 @@ jobs:
       #   git tag v2026.10.20 && git push origin v2026.10.20
       # =====================================================================
       - name: Publish GitHub Release
+        # ⚠ permissions 不能写在 step 级（GitHub 会报 Unexpected value），
+        #   已挪到 job 级。step 级只支持 name/if/env/run/with/...
         if: github.ref_type == 'tag'
-        needs: [Collect artifacts, Upload artifacts]
-        permissions:
-          contents: write          # 发 Release 必需
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
