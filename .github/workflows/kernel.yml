@@ -48,7 +48,8 @@ env:
   BOARD: halo-a311d
   BRANCH: current
   FAMILY: meson-g12b
-  KERNEL_SUBDIR: meson64-current
+  # ⚠ 必须与 armbian 的 KERNELPATCHDIR 一致：archive/meson64-6.18（BRANCH=current）
+  KERNEL_SUBDIR: archive/meson64-6.18
 
 jobs:
   kernel:

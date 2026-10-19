@@ -61,16 +61,33 @@ echo "✓ fip/halo-a311d ($(ls -1 "$BUILD_DIR/fip/halo-a311d" | wc -l) 个文件
 #                       edge   → meson64-edge (上游路径可能不同)
 #    写死 = 「镜像编出来了但里面没有本板 dtb」那个坑
 # -----------------------------------------------------------------------------
-KVER="$(grep -m1 '^KERNELBRANCH_VERSION=' \
-        "$BUILD_DIR/config/sources/families/include/meson64_common.inc" 2>/dev/null \
-        | cut -d= -f2 | tr -d '"')" || true
-# meson64_current 目录名规则来自 meson64_common.inc 的 case $BRANCH
-DT_DIR="$UP/kernel/meson64-current/dt"
-[ "${HALO_KERNEL_BRANCH:-current}" = "edge" ] && DT_DIR="$UP/kernel/meson64-edge/dt"
+# ⚠⚠ 目录名必须与 armbian 的 KERNELPATCHDIR 严格一致，否则 dts 不会进内核。
+#
+# 上游依据 config/sources/common.conf:126-128:
+#     KERNELPATCHDIR="archive/${KERNEL_PATCH_ARCHIVE_BASE}-${KERNEL_MAJOR_MINOR}"
+#   而 config/sources/families/include/meson64_common.inc 的 case $BRANCH:
+#     current → 6.12/6.18  → KERNEL_MAJOR_MINOR=6.18
+#     edge   → 7.3
+#     oldlts → 6.12
+#   KERNEL_PATCH_ARCHIVE_BASE = meson64（来自 LINUXFAMILY）
+#
+# 所以 BRANCH=current 必须是 **archive/meson64-6.18**，
+#    写成 meson64-current 会让板级 dts被静默忽略
+#    （症状：编译成功、deb 产出，但 linux-dtb 里没有本板 dtb）。
+BRANCH_NAME="${HALO_KERNEL_BRANCH:-current}"
+case "$BRANCH_NAME" in
+    current)      KMM="6.18" ;;
+    edge)         KMM="7.3"  ;;
+    bleedingedge) KMM="7.4"  ;;
+    oldlts)       KMM="6.12" ;;
+    *)            KMM="6.18" ;;
+esac
+
+DT_DIR="$UP/kernel/archive/meson64-${KMM}/dt"
 mkdir -p "$DT_DIR"
 install -m 0644 "$REPO_ROOT/dt/meson-halo-a311d.dts"      "$DT_DIR/"
 install -m 0644 "$REPO_ROOT/dt/meson-halo-a311d-pcie.dts" "$DT_DIR/"
-echo "✓ $DT_DIR"
+echo "✓ $DT_DIR  (BRANCH=$BRANCH_NAME → KERNEL_MAJOR_MINOR=$KMM)"
 
 # -----------------------------------------------------------------------------
 # 5. U-Boot 模式选择脚本（冷切换）
