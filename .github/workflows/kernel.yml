@@ -90,7 +90,7 @@ jobs:
       - name: Cache armbian sources
         uses: actions/cache@v4
         with:
-          path: ~/armbian-build/cache/sources
+          path: armbian-build/cache/sources
           key: arm-meson64-${{ env.BRANCH }}-${{ hashFiles('dt/**', 'config/**') }}
           restore-keys: |
             arm-meson64-${{ env.BRANCH }}-
@@ -99,30 +99,30 @@ jobs:
       - name: Clone armbian/build
         run: |
           set -eux
-          git clone --depth 1 https://github.com/armbian/build.git ~/armbian-build
+          git clone --depth 1 https://github.com/armbian/build.git "$BUILD_DIR"
           # 官方排除 /userpatches，要提交注入结果必须去掉
-          sed -i 's|^/userpatches$|# /userpatches (CI: 注入后需提交)|' ~/armbian-build/.gitignore
-          mkdir -p ~/armbian-build/userpatches
-          grep -n "userpatches" ~/armbian-build/.gitignore | head -3
+          sed -i 's|^/userpatches$|# /userpatches (CI: injected)|' "$BUILD_DIR/.gitignore"
+          mkdir -p "$BUILD_DIR/userpatches"
+          grep -n "userpatches" "$BUILD_DIR/.gitignore" | head -3
 
       - name: Inject board files
         run: |
           set -eux
           chmod +x scripts/deploy-to-build.sh
-          ./scripts/deploy-to-build.sh ~/armbian-build
+          ./scripts/deploy-to-build.sh ${{ env.BUILD_DIR }}
           echo "--- 注入结果校验 ---"
-          test -f ~/armbian-build/userpatches/config/boards/${{ env.BOARD }}.conf
-          test -f ~/armbian-build/userpatches/config/sources/families/meson-g12b.conf
-          test -f ~/armbian-build/userpatches/kernel/${{ env.KERNEL_SUBDIR }}/dt/meson-halo-a311d.dts
-          test -f ~/armbian-build/fip/halo-a311d/blx_fix.sh
-          ls -la ~/armbian-build/fip/halo-a311d/ | head -5
+          test -f ${{ env.BUILD_DIR }}/userpatches/config/boards/${{ env.BOARD }}.conf
+          test -f ${{ env.BUILD_DIR }}/userpatches/config/sources/families/meson-g12b.conf
+          test -f ${{ env.BUILD_DIR }}/userpatches/kernel/${{ env.KERNEL_SUBDIR }}/dt/meson-halo-a311d.dts
+          test -f ${{ env.BUILD_DIR }}/fip/halo-a311d/blx_fix.sh
+          ls -la ${{ env.BUILD_DIR }}/fip/halo-a311d/ | head -5
           echo "✓ 板级文件已就位"
 
       - name: Build kernel
-        working-directory: ~/armbian-build
         run: |
           set -eux
-          export USERPATCHES_PATH=~/armbian-build/userpatches
+          cd "$BUILD_DIR"
+          export USERPATCHES_PATH="$BUILD_DIR/userpatches"
           TGT="${{ github.event.inputs.target || 'kernel' }}"
           echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
           ./compile.sh "$TGT" \
@@ -132,7 +132,7 @@ jobs:
       - name: Collect artifacts
         run: |
           set -eux
-          cd ~/armbian-build
+          cd "$BUILD_DIR"
           mkdir -p out-halo
 
           # dtb（内核构建的权威产物）
@@ -153,8 +153,8 @@ jobs:
         with:
           name: halo-a311d-kernel-${{ github.event.inputs.target || 'kernel' }}
           path: |
-            ~/armbian-build/out-halo/*.dtb
-            ~/armbian-build/output/**/*.deb
-            ~/armbian-build/output/**/*.deb.*
+            armbian-build/out-halo/*.dtb
+            armbian-build/output/**/*.deb
+            armbian-build/output/**/*.deb.*
           retention-days: 30
           if-no-files-found: warn
