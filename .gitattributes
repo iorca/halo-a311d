@@ -12,3 +12,6 @@ fip/*.py      text eol=lf
 *.hush   text eol=lf
 *.sh     text eol=lf
 *.yml    text eol=lf
+
+.gitattributes  text eol=lf
+.gitignore    text eol=lf
