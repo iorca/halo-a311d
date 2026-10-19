@@ -1,0 +1,98 @@
+# =============================================================================
+# halo-a311d —— DTB 语法检查
+#
+# 方案演进（踩坑记录）:
+#   v1 git clone torvalds/linux --sparse → 15 秒 exit 127，整仓太重
+#   v2 tarball v6.18.tar.gz           → 仍是 250MB 全量下载，且 raw API 在部分网络不通
+#   v3 稀疏 clone（当前）              → blob:none + sparse，只拉 amlogic 目录
+#
+# 关键: include-prefixes 必须在 sparse 清单里，否则 dt-bindings 头找不到，
+#      会报 "GPIOAO_10 未定义" 这类假错误。
+# =============================================================================
+name: dtb-check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dt/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - 'dt/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+env:
+  KVER: '6.18'
+
+jobs:
+  dtb:
+    name: DTB syntax check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dtc
+        run: |
+          set -eux
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq device-tree-compiler
+          # exit 127 就是这里没装上——显式验证，别让它静默过去
+          command -v dtc
+          dtc --version
+          command -v cpp
+
+      - name: Sparse-clone kernel dts
+        run: |
+          set -eux
+          cd "$RUNNER_TEMP"
+          git clone --depth 1 --filter=blob:none --sparse \
+            "https://github.com/torvalds/linux.git" kernel
+          cd kernel
+          git sparse-checkout set \
+            arch/arm64/boot/dts/amlogic \
+            scripts/dtc/include-prefixes
+          echo "--- 关键文件校验 ---"
+          ls arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi
+          ls arch/arm64/boot/dts/amlogic/meson-g12b.dtsi
+          ls scripts/dtc/include-prefixes/dt-bindings/gpio/meson-g12a-gpio.h
+
+      - name: Compile DTBs
+        run: |
+          set -eux
+          K="$RUNNER_TEMP/kernel"
+          D="$K/arch/arm64/boot/dts/amlogic"
+          # 板级 dts 放进 amlogic 目录（同名会被覆盖，无冲突则新增）
+          cp "$GITHUB_WORKSPACE/dt/meson-halo-a311d.dts"      "$D/"
+          cp "$GITHUB_WORKSPACE/dt/meson-halo-a311d-pcie.dts" "$D/"
+
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::compile $f.dtb"
+            cpp -nostdinc \
+                -I "$D" \
+                -I "$K/scripts/dtc/include-prefixes" \
+                -undef -D__DTS__ -x assembler-with-cpp \
+                "$D/$f.dts" -o "/tmp/$f.pp.dts"
+            dtc -I dts -O dtb -o "/tmp/$f.dtb" "/tmp/$f.pp.dts" 2>"/tmp/$f.err" || true
+            # 过滤上游既有警告（unit_address_vs_reg 等），只看本板问题
+            grep -vE 'unit_address_vs_reg|simple_bus_reg|avoid_unnecessary_addr_size|also defined at' \
+                 "/tmp/$f.err" > "/tmp/$f.filt" || true
+            if [ -s "/tmp/$f.filt" ]; then
+              echo "::error file=dt/$f.dts::$(head -1 "/tmp/$f.filt")"
+              cat "/tmp/$f.filt"
+              fail=1
+            else
+              echo "OK  $f.dtb  ($(stat -c%s "/tmp/$f.dtb") bytes)"
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: Upload DTBs
+        uses: actions/upload-artifact@v4
+        with:
+          name: halo-a311d-dtb
+          path: /tmp/meson-halo-a311d*.dtb
