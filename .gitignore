@@ -12,3 +12,6 @@ netlist-dump/nl_raw.json
 # Python
 __pycache__/
 *.pyc
+
+# WorkBuddy 内部工作区，不进仓库
+.workbuddy/
