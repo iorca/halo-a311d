@@ -15,3 +15,7 @@ __pycache__/
 
 # WorkBuddy 内部工作区，不进仓库
 .workbuddy/
+
+# 分析脚本输出（临时）
+klog.tmp
+*.tmp
