@@ -66,15 +66,20 @@ echo "✓ config/sources/families/meson-g12b.conf"
 # -----------------------------------------------------------------------------
 # 3. FIP blob —— 仅 gxlimg-full-mainline-uboot 分支需要
 #
-# armbian 的 amlogic-fip-blobs 扩展会把 retro98boy/amlogic-fip-blobs clone 到
-#   $SRC/cache/sources/amlogic-fip-blobs
-# 我们把本仓库 fip-blob/halo-a311d/ 拷进去（该仓库没有本板，故需自带）。
+# ⚠ 只拷到 userpatches/，**不要**直接放 cache/sources/amlogic-fip-blobs/。
+#   因为 armbian 的 fetch_sources_tools__amlogic-fip-blobs() 会在那个目录
+#   git init + checkout + reset，把未跟踪文件全清掉 → blob 被冲掉
+#   （2026-10-19 实测踩过，报 "本板 FIP blob 未找到"）。
+#
+# board conf 的 post_uboot_custom_postprocess__repack_vendor_fip_with_mainline_uboot
+#   在 fetch_sources **之后**执行，那时才从这里取 blob 放到
+#   ${SRC}/cache/fip-blobs/halo-a311d（普通目录，armbian 不管）。
 #
 # blob 缺失时**不报错**：board conf 的 hook 会给出明确提示后 exit，
 # 这样 main 分支（LibreELEC 方案）完全不受影响。
 # -----------------------------------------------------------------------------
 BLOB_SRC="$REPO_ROOT/fip-blob/halo-a311d"
-BLOB_DST="$BUILD_DIR/cache/sources/amlogic-fip-blobs/halo-a311d"
+BLOB_DST="$UP/fip-blob/halo-a311d"
 if [ -d "$BLOB_SRC" ]; then
     mkdir -p "$BLOB_DST"
     # 只拷 blob 本体（排除 README 等说明文件）
@@ -87,7 +92,7 @@ if [ -d "$BLOB_SRC" ]; then
     shopt -u nullglob
     n=$(find "$BLOB_DST" -type f | wc -l)
     if [ "$n" -gt 0 ]; then
-        echo "✓ fip-blob/halo-a311d → amlogic-fip-blobs/halo-a311d  ($n 个文件)"
+        echo "✓ fip-blob/halo-a311d → userpatches/fip-blob/  ($n 个文件)"
         find "$BLOB_DST" -type f -printf '    %f (%s B)\n' 2>/dev/null || ls -la "$BLOB_DST"
     else
         echo "  (fip-blob/ 里没有 blob —— gxlimg 分支需要完整厂商 FIP，main 分支不需要)"
