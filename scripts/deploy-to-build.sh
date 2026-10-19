@@ -98,7 +98,7 @@ install -m 0644 "$REPO_ROOT/dt/meson-halo-a311d-pcie.dts" "$DT_DIR/"
 echo "✓ $DT_DIR  (BRANCH=$BRANCH_NAME → KERNEL_MAJOR_MINOR=$KMM)"
 
 # -----------------------------------------------------------------------------
-# 4. U-Boot 模式选择脚本（冷切换）
+# 5. U-Boot 模式选择脚本（冷切换）
 # -----------------------------------------------------------------------------
 install -m 0644 "$REPO_ROOT/boot/althaea-mode.hush" \
               "$BUILD_DIR/fip/halo-a311d/althaea-mode.hush" 2>/dev/null || true

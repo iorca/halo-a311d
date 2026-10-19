@@ -15,3 +15,6 @@ fip/*.py      text eol=lf
 
 .gitattributes  text eol=lf
 .gitignore    text eol=lf
+
+# 本板厂商 FIP blob（1.5~4MB），用 LFS
+fip-blob/**filter=lfs diff=lfs merge=lfs -text
