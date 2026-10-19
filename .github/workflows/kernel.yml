@@ -186,11 +186,18 @@ jobs:
           #   KERNEL_CONFIGURE=no 是 armbian 官方 config 模板里的推荐值
           export KERNEL_CONFIGURE=no
           export BUILD_ONLY=""
-          # ⚠ build 还会问「桌面版还是 minimal」→ BUILD_DESKTOP
-          #   no  = 服务器版（console only），本板无桌面环境，选这个
-          #   yes = 带桌面环境
+          # ⚠⚠ build 有三个交互点，CI 里必须全部预设，否则弹 dialog 死掉：
+          #   1. release                → RELEASE=noble（见下）
+          #   2. 桌面版还是服务器版      → BUILD_DESKTOP=no
+          #      (interactive.sh:371 interactive_config_ask_desktop_build)
+          #   3. standard 还是 minimal   → BUILD_MINIMAL=yes
+          #      (interactive.sh:382 interactive_config_ask_standard_or_minimal
+          #       第385行 [[ -n $BUILD_MINIMAL ]] && return 0 —— 设了就不问)
+          #
+          # 选 minimal：不含 packages.additional，体积小，适合板子
           export BUILD_DESKTOP=no
-          # 本板无视频输出需求，声明后 armbian 不会再问桌面选项
+          export BUILD_MINIMAL=yes
+          # 本板无视频输出，声明后连桌面选项都不会问
           export HAS_VIDEO_OUTPUT=no
           echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
           #⚠ RELEASE 是 rootfs/build 的必填参数，
