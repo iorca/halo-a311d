@@ -1,5 +1,37 @@
 # 本板 FIP blob（gxlimg 全主线方案用）
 
+## ✅ 当前已有：`fip-vendor-mainline-uboot.bin`（1,522,032 B）
+
+`md5 = 6a01004023481ea0fcde9792e7abdb5e`
+
+**来源**：VM 上用厂商 SDK 的工具从 `pro-a311d/` 散件重新打包生成——
+```bash
+~/PRO-A311D/amlogic-boot-fip/pro-a311d/   # 厂商散件（自带 aml_encrypt_g12b）
+cp ~/PRO-A311D/amlogic-boot-fip/g12a.inc .
+./blx_fix.sh bl30.bin zero_tmp bl30_zero.bin bl301.bin bl301_zero.bin bl30_new.bin bl30
+./blx_fix.sh bl2.bin  zero_tmp bl2_zero.bin  acs.bin   bl21_zero.bin bl2_new.bin  bl2
+./aml_encrypt_g12b --bl30sig --input bl30_new.bin --output bl30.g12a.enc --level v3
+./aml_encrypt_g12b --bl3sig  --input bl30.g12a.enc --output bl30_new.bin.enc --level v3 --type bl30
+./aml_encrypt_g12b --bl3sig  --input bl31.img --output bl31.img.enc --level v3 --type bl31
+./aml_encrypt_g12b --bl3sig  --input u-boot.bin --compress lz4 --output bl33.bin.enc --level v3 --type bl33
+./aml_encrypt_g12b --bl2sig  --input bl2_new.bin --output bl2.n.bin.sig
+./aml_encrypt_g12b --bootmk --output u-boot.bin --level v3 \
+  --bl2 bl2.n.bin.sig --bl30 bl30_new.bin.enc --bl31 bl31.img.enc --bl33 bl33.bin.enc \
+  --ddrfw1 ddr4_1d.fw --ddrfw2 ddr4_2d.fw --ddrfw3 ddr3_1d.fw \
+  --ddrfw4 piei.fw --ddrfw5 lpddr4_1d.fw --ddrfw6 lpddr4_2d.fw \
+  --ddrfw7 diag_lpddr4.fw --ddrfw8 aml_ddr.fw --ddrfw9 lpddr3_1d.fw
+```
+
+**已验证 `gxlimg -e` 能完整解包**（在 VM 上实测）：
+```
+bl2.sign (65536)  bl30.enc (58736)  bl31.enc (198144)
+ddr3/4_1d.fw  ddr4_2d.fw  lpddr3/lpddr4_1d/2d.fw  piei.fw  aml_ddr.fw  diag_lpddr4.fw
+```
+→ 这正是 gxlimg 重打包需要的全部输入，**方案可行**。
+
+> ⚠ 注意：生成时用的 bl33 是 armbian 编译出的主线 u-boot v2022.07。
+> 但 gxlimg 方案会在构建时**重新替换** bl33，所以 blob 里的 bl33 是哪版不影响。
+
 ## 这个目录放什么
 
 **一个完整的厂商 FIP 文件**，二选一：
