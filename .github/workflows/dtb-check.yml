@@ -62,18 +62,22 @@ jobs:
           cd kernel
           # ⚠ dt-bindings 常量在 include/dt-bindings/，不在 scripts/dtc/
           #   meson-g12a-gpio.h 提供 GPIOAO_10 等宏，缺了会报未定义
-          # cone 模式：目录整棵拉下来。
-          # ⚠ 不要用 --no-cone + '**' 通配 —— 实测会漏掉
-          #   include/dt-bindings/input/linux-event-codes.h
-          #   （通配在 --no-cone 下只匹配一层，深层目录拿不到）
+          # ⚠⚠ 必须包含 include/uapi —— dt-bindings 里有些头是符号链接指向它：
+          #     include/dt-bindings/input/linux-event-codes.h
+          #       -> ../../uapi/linux/input-event-codes.h
+          #   sparse 不拉 include/uapi 时链接断裂，[ -f ] 返回 false，
+          #   会误报"头文件缺失"。这是本次 CI 排障最费时的一个坑。
           git sparse-checkout set \
             arch/arm64/boot/dts/amlogic \
-            include/dt-bindings
-          echo "--- dt-bindings 目录清单 ---"
-          ls "$RUNNER_TEMP/kernel/include/dt-bindings/input/" || \
-            echo "::error::input/ 目录未拉下来"
-          ls "$RUNNER_TEMP/kernel/include/dt-bindings/interrupt-controller/" || \
-            echo "::error::interrupt-controller/ 未拉下来"
+            include/dt-bindings \
+            include/uapi
+          echo "--- 校验符号链接是否有效 ---"
+          ls -la "$RUNNER_TEMP/kernel/include/dt-bindings/input/linux-event-codes.h"
+          test -f "$RUNNER_TEMP/kernel/include/dt-bindings/input/linux-event-codes.h" || {
+            echo "::error::linux-event-codes.h 仍是断链（include/uapi 未拉下来）"
+            exit 1
+          }
+          echo "符号链接 OK"
           echo "--- 关键文件校验 ---"
           ls arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi
           ls arch/arm64/boot/dts/amlogic/meson-g12b.dtsi
@@ -107,18 +111,13 @@ jobs:
               exit 1
             fi
           done
-          echo "--- 诊断 ---"
-          echo "K=$K"
-          echo "输入头列表:"
-          grep -oE '#include <dt-bindings/[^>]+>' "$D/meson-halo-a311d.dts" || true
-          echo "input 目录实际内容:"
-          ls -la "$K/include/dt-bindings/input/" 2>&1 || true
-          echo "--- 逐个校验 ---"
+          echo "--- 校验 dts 引用的每个 dt-bindings 头 ---"
           # 逐一校验 dts 里 include 的每个 dt-bindings 头
           grep -oE '#include <dt-bindings/[^>]+>' "$D/meson-halo-a311d.dts" \
             | sed 's/.*<\(.*\)>.*/\1/' | sort -u > /tmp/hdrs.txt
           while read -r hdr; do
             [ -z "$hdr" ] && continue
+            # shell test -f 对**有效**符号链接返回 true，断链返回 false
             if [ -f "$K/include/$hdr" ]; then
               echo "  ok  $hdr"
             else
