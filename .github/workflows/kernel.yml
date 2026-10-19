@@ -54,6 +54,12 @@ on:
           - rootfs    # 只编 rootfs
           - firmware  # 只编固件包
           - build     # **全部 artifact**（含完整镜像，~2h）
+      release:
+        description: 'rootfs 发行版（target=rootfs/build 时必填）'
+        required: false
+        default: noble
+        type: choice
+        options: [noble, bookworm, trixie, jammy]
   schedule:
     # 每周一早上 6 点增量重建（cron: '0 6 * * 1'）
     - cron: '0 6 * * 1'
@@ -176,9 +182,20 @@ jobs:
           export DOCKER=no
           export SKIP_ARMBIAN_IMAGE=yes
           echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
-          ./compile.sh "$TGT" \
-            BOARD="${{ env.BOARD }}" \
-            BRANCH="${{ env.BRANCH }}"
+          #⚠ RELEASE 是 rootfs/build 的必填参数，
+          #   缺了报 "Param 'RELEASE' is not set but needs to be set for rootfs CLI"
+          if [ "$TGT" = "rootfs" ] || [ "$TGT" = "build" ]; then
+            REL="${{ github.event.inputs.release || 'noble' }}"
+            echo ">>> target=$TGT 需要 RELEASE=$REL"
+            ./compile.sh "$TGT" \
+              BOARD="${{ env.BOARD }}" \
+              BRANCH="${{ env.BRANCH }}" \
+              RELEASE="$REL"
+          else
+            ./compile.sh "$TGT" \
+              BOARD="${{ env.BOARD }}" \
+              BRANCH="${{ env.BRANCH }}"
+          fi
 
       - name: Collect artifacts
         run: |
