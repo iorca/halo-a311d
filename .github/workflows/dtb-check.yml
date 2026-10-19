@@ -62,9 +62,10 @@ jobs:
           cd kernel
           # ⚠ dt-bindings 常量在 include/dt-bindings/，不在 scripts/dtc/
           #   meson-g12a-gpio.h 提供 GPIOAO_10 等宏，缺了会报未定义
-          git sparse-checkout set \
-            arch/arm64/boot/dts/amlogic \
-            include/dt-bindings
+          # 用 --no-cone 精确指定文件，避免 cone 模式漏掉深层目录
+          git sparse-checkout set --no-cone \
+            '/arch/arm64/boot/dts/amlogic/*' \
+            '/include/dt-bindings/**' 
           echo "--- 关键文件校验 ---"
           ls arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi
           ls arch/arm64/boot/dts/amlogic/meson-g12b.dtsi
@@ -98,10 +99,17 @@ jobs:
               exit 1
             fi
           done
-          if [ ! -f "$K/include/dt-bindings/gpio/meson-g12a-gpio.h" ]; then
-            echo "::error::缺少 dt-bindings/gpio/meson-g12a-gpio.h（提供 GPIOAO_10 等常量）"
-            exit 1
-          fi
+          # 逐一校验 dts 里#include 的每个 dt-bindings 头，缺一个就明确报出来
+          for hdr in $(grep -oE '#include <dt-bindings/[^>]+>' \
+                       "$D/meson-halo-a311d.dts" | sed 's/.*<\(.*\)>.*/\1/'); do
+            if [ ! -f "$K/include/$hdr" ]; then
+              echo "::error::缺少头文件 include/$hdr"
+              echo "已下载的 dt-bindings:"
+              find "$K/include/dt-bindings" -maxdepth 2 -type d 2>/dev/null | head -20
+              exit 1
+            fi
+            echo "  ok  $hdr"
+          done
 
           for f in meson-halo-a311d meson-halo-a311d-pcie; do
             echo "::group::compile $f.dtb"
