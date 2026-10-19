@@ -31,6 +31,13 @@
 # =============================================================================
 name: kernel-build
 
+# ⚠ 连续 push 时取消上一次构建 —— 每次完整编译 50+ 分钟，
+#   连推几个 commit 就是几小时的空转。
+#   push / PR 触发时立即取消旧的；workflow_dispatch 手动触发不取消。
+concurrency:
+  group: kernel-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
 on:
   push:
     branches: [main]
@@ -150,14 +157,25 @@ jobs:
       #    CCACHE_DIR 放在 ${SRC}/cache/ccache，正好和sources 一起缓存。
       #    只改 dts / config 时，45 分钟的编译能压到 5~10 分钟。
       # =====================================================================
+      - name: Resolve armbian upstream SHA
+        id: armbian_sha
+        run: |
+          set -eu
+          SHA=$(git ls-remote https://github.com/armbian/build.git HEAD | cut -f1)
+          echo "armbian/build HEAD = ${SHA:0:12}"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
       - name: Cache armbian sources
         uses: actions/cache@v4
         with:
           path: armbian-build/cache/sources
-          key: arm-sources-${{ env.BRANCH }}-${{ env.FAMILY }}-v3
+          # key 里带 armbian/build 的当前 HEAD：上游更新时自动拿新缓存，
+          # 且 restore-keys 前缀匹配仍能命中旧缓存（增量 fetch，不是全量重下）。
+          # ⚠ 绝不能把 hashFiles('dt/**') 放进 key —— 改一次 dts 就让
+          #10GB 内核树缓存失效，得不偿失（dts 不影响源码树）。
+          key: arm-sources-${{ env.BRANCH }}-${{ env.FAMILY }}-${{ steps.armbian_sha.outputs.sha }}
           restore-keys: |
             arm-sources-${{ env.BRANCH }}-${{ env.FAMILY }}-
-            arm-sources-
 
       - name: Cache apt packages
         uses: actions/cache@v4
