@@ -107,17 +107,29 @@ jobs:
               exit 1
             fi
           done
-          # 逐一校验 dts 里#include 的每个 dt-bindings 头，缺一个就明确报出来
-          for hdr in $(grep -oE '#include <dt-bindings/[^>]+>' \
-                       "$D/meson-halo-a311d.dts" | sed 's/.*<\(.*\)>.*/\1/'); do
-            if [ ! -f "$K/include/$hdr" ]; then
+          echo "--- 诊断 ---"
+          echo "K=$K"
+          echo "输入头列表:"
+          grep -oE '#include <dt-bindings/[^>]+>' "$D/meson-halo-a311d.dts" || true
+          echo "input 目录实际内容:"
+          ls -la "$K/include/dt-bindings/input/" 2>&1 || true
+          echo "--- 逐个校验 ---"
+          # 逐一校验 dts 里 include 的每个 dt-bindings 头
+          grep -oE '#include <dt-bindings/[^>]+>' "$D/meson-halo-a311d.dts" \
+            | sed 's/.*<\(.*\)>.*/\1/' | sort -u > /tmp/hdrs.txt
+          while read -r hdr; do
+            [ -z "$hdr" ] && continue
+            if [ -f "$K/include/$hdr" ]; then
+              echo "  ok  $hdr"
+            else
               echo "::error::缺少头文件 include/$hdr"
-              echo "已下载的 dt-bindings:"
-              find "$K/include/dt-bindings" -maxdepth 2 -type d 2>/dev/null | head -20
+              echo "已下载的 dt-bindings 顶层:"
+              ls "$K/include/dt-bindings/" 2>&1 || true
+              echo "input/ 下有:"
+              ls "$K/include/dt-bindings/input/" 2>&1 || true
               exit 1
             fi
-            echo "  ok  $hdr"
-          done
+          done < /tmp/hdrs.txt
 
           for f in meson-halo-a311d meson-halo-a311d-pcie; do
             echo "::group::compile $f.dtb"
