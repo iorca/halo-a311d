@@ -183,6 +183,7 @@ jobs:
           ./scripts/deploy-to-build.sh $GITHUB_WORKSPACE/armbian-build
           echo "--- 注入结果校验 ---"
           test -f $GITHUB_WORKSPACE/armbian-build/userpatches/config/boards/${{ env.BOARD }}.conf
+          test -f $GITHUB_WORKSPACE/armbian-build/userpatches/config/sources/families/meson-g12b.conf
           test -f $GITHUB_WORKSPACE/armbian-build/userpatches/kernel/${{ env.KERNEL_SUBDIR }}/dt/meson-halo-a311d.dts
           # FIP 不再自己维护 —— armbian 会自动 fetch LibreELEC 的 khadas-vim3 目录
           # （board conf 里的 post_uboot_custom_postprocess__halo_a311d_uboot hook指定）
