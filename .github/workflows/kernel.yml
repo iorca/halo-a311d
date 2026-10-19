@@ -168,6 +168,13 @@ jobs:
           cd "$GITHUB_WORKSPACE/armbian-build"
           export USERPATCHES_PATH="$GITHUB_WORKSPACE/armbian-build/userpatches"
           TGT="${{ github.event.inputs.target || 'kernel' }}"
+          # ⚠ 必须禁Docker —— 'build' / 'rootfs' 这类 target 会尝试拉
+          #   armbian/build 的 Docker 镜像跑 chroot，GitHub runner 上没 Docker
+          #   → "Docker run failed after 71s" + exit 43
+          #   kernel target 之所以能过，是因为它不需要 chroot。
+          export PREFER_DOCKER=no
+          export DOCKER=no
+          export SKIP_ARMBIAN_IMAGE=yes
           echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
           ./compile.sh "$TGT" \
             BOARD="${{ env.BOARD }}" \
