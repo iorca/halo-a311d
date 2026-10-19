@@ -37,6 +37,18 @@ install -m 0644 "$REPO_ROOT/config/boards/halo-a311d.conf" \
 echo "✓ config/boards/halo-a311d.conf"
 
 # -----------------------------------------------------------------------------
+# 2. family 覆盖 —— uboot_custom_postprocess()
+#
+# 作用：把 halo-a311d 加进上游 meson-g12b.conf 的 VIM3 空操作分支，
+#   避免落到 else 分支的 "exit 2"。
+#   FIP 组装本身由 board conf 的 hook 完成（用 LibreELEC 的 khadas-vim3 目录）。
+# -----------------------------------------------------------------------------
+mkdir -p "$UP/config/sources/families"
+install -m 0644 "$REPO_ROOT/config/sources/families/meson-g12b.conf" \
+              "$UP/config/sources/families/meson-g12b.conf"
+echo "✓ config/sources/families/meson-g12b.conf"
+
+# -----------------------------------------------------------------------------
 # 2. FIP —— 不再自己维护！
 #
 #armbian 的 fetch_sources_tools__libreelec_amlogic_fip() 会自动把
