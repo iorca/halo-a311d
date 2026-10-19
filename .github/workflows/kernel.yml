@@ -106,11 +106,33 @@ jobs:
       - name: Clone armbian/build
         run: |
           set -eux
-          git clone --depth 1 https://github.com/armbian/build.git "$GITHUB_WORKSPACE/armbian-build"
+          B="$GITHUB_WORKSPACE/armbian-build"
+          # ⚠ actions/cache 会先恢复 cache/sources（目录已存在且非空），
+          #   直接 git clone 报 "destination path already exists and is not an empty directory"
+          #   → 只在缺失时 clone；已存在则增量更新
+          if [ -d "$B/.git" ]; then
+            echo "已存在 clone，增量更新"
+            git -C "$B" fetch --depth 1 origin main
+            git -C "$B" reset --hard origin/main
+            git -C "$B" clean -fd
+          else
+            if [ -d "$B" ] && [ -n "$(ls -A "$B" 2>/dev/null)" ]; then
+              echo "目标目录非空(cache 恢复)，先保留 cache/sources"
+              mkdir -p /tmp/keep
+              [ -d "$B/cache/sources" ] && mv "$B/cache/sources" /tmp/keep/sources || true
+              rm -rf "$B"
+              git clone --depth 1 https://github.com/armbian/build.git "$B"
+              mkdir -p "$B/cache"
+              [ -d /tmp/keep/sources ] && mv /tmp/keep/sources "$B/cache/sources" || true
+            else
+              git clone --depth 1 https://github.com/armbian/build.git "$B"
+            fi
+          fi
           # 官方排除 /userpatches，要提交注入结果必须去掉
-          sed -i 's|^/userpatches$|# /userpatches (CI: injected)|' "$GITHUB_WORKSPACE/armbian-build/.gitignore"
-          mkdir -p "$GITHUB_WORKSPACE/armbian-build/userpatches"
-          grep -n "userpatches" "$GITHUB_WORKSPACE/armbian-build/.gitignore" | head -3
+          sed -i 's|^/userpatches$|# /userpatches (CI: injected)|' "$B/.gitignore"
+          mkdir -p "$B/userpatches"
+          echo "--- .gitignore 中的 userpatches 规则 ---"
+          grep -n "userpatches" "$B/.gitignore" || echo "(已移除)"
 
       - name: Inject board files
         run: |
