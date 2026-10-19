@@ -62,10 +62,18 @@ jobs:
           cd kernel
           # ⚠ dt-bindings 常量在 include/dt-bindings/，不在 scripts/dtc/
           #   meson-g12a-gpio.h 提供 GPIOAO_10 等宏，缺了会报未定义
-          # 用 --no-cone 精确指定文件，避免 cone 模式漏掉深层目录
-          git sparse-checkout set --no-cone \
-            '/arch/arm64/boot/dts/amlogic/*' \
-            '/include/dt-bindings/**' 
+          # cone 模式：目录整棵拉下来。
+          # ⚠ 不要用 --no-cone + '**' 通配 —— 实测会漏掉
+          #   include/dt-bindings/input/linux-event-codes.h
+          #   （通配在 --no-cone 下只匹配一层，深层目录拿不到）
+          git sparse-checkout set \
+            arch/arm64/boot/dts/amlogic \
+            include/dt-bindings
+          echo "--- dt-bindings 目录清单 ---"
+          ls "$RUNNER_TEMP/kernel/include/dt-bindings/input/" || \
+            echo "::error::input/ 目录未拉下来"
+          ls "$RUNNER_TEMP/kernel/include/dt-bindings/interrupt-controller/" || \
+            echo "::error::interrupt-controller/ 未拉下来"
           echo "--- 关键文件校验 ---"
           ls arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi
           ls arch/arm64/boot/dts/amlogic/meson-g12b.dtsi
