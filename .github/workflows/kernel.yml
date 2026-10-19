@@ -186,6 +186,12 @@ jobs:
           #   KERNEL_CONFIGURE=no 是 armbian 官方 config 模板里的推荐值
           export KERNEL_CONFIGURE=no
           export BUILD_ONLY=""
+          # ⚠ build 还会问「桌面版还是 minimal」→ BUILD_DESKTOP
+          #   no  = 服务器版（console only），本板无桌面环境，选这个
+          #   yes = 带桌面环境
+          export BUILD_DESKTOP=no
+          # 本板无视频输出需求，声明后 armbian 不会再问桌面选项
+          export HAS_VIDEO_OUTPUT=no
           echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
           #⚠ RELEASE 是 rootfs/build 的必填参数，
           #   缺了报 "Param 'RELEASE' is not set but needs to be set for rootfs CLI"
