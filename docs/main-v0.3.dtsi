@@ -1,0 +1,303 @@
+/**
+ * MAIN_V0.3 底板 DTS 适配骨架
+ * ---------------------------------------------------------------------------
+ * SoC  : Amlogic A311D (G12B, pin-to-pin S922X)
+ * 板本: MAIN_V0.3,CN1/CN2/CN3 = AXK5F80337YG (80P BTB)
+ *
+ * 数据来源：本板 MAIN_V0.3 全工程网表实测（495 元件 / 393 网络）
+ *   → 详见同目录《DTS适配要求.md》，每项均有网表出处
+ *
+ * ⚠⚠⚠ 合并厂家 BSP 前必读 ⚠⚠⚠
+ *   1. 本文件 GPIO 分配来自**本板网表实测**，厂家 BSP 底板用的是**另一套固定分配**。
+ *      直接覆盖厂家 .dtsi 会导致厂商驱动 probe 失败。正确做法是逐项比对后取交集。
+ *   2. 标 [厂商核对] 的项，含义是"本板实测如此，但需确认厂家驱动是否复用该脚"。
+ *   3. 标 [本板独有] 的项，厂家 BSP 里通常不存在，需新增。
+ *   4. GPIO 复用名（TDMB_D0/PWM_D/WORLD_SYNC 等）见 A311D 规格书 pad 表，
+ *      本板一律按**普通 GPIO**使用，不启用复用功能 → 只需 bias 配置。
+ *
+ * 引用方式：
+ *   #include "main-v0.3.dtsi"
+ */
+
+/ {
+    model = "MAIN_V0.3 (A311D)";
+    compatible = "amlogic,a311d", "amlogic,g12b";
+
+    aliases {
+        mmc0 = &sd_emmc_c;    /* eMMC  */
+        mmc1 = &sd_emmc_b;    /* SD 卡 */
+        mmc2 = &sd_emmc_a;    /* SDIO → AP6256 WiFi/BT */
+    };
+};
+
+/* ===========================================================================
+ * 1. 以太网 —— RGMII 千兆 + RTL8211F（pin-to-pin 兼容 YT8531H-CA）
+ * ===========================================================================
+ * PHY : U23 = RTL8211F，QFN40
+ * 接法: GMAC0 ← RGMII → U23 → RJ45
+ * 复位: RGMII_RST#(CN3-2) ──R50(0Ω)──→ PHY0_RSTN(U23-12)，底板不另配 GPIO
+ * 模式: RGMII 与 RMII 互斥(PRG_ETH_REG1[0], 仅复位采样) → 本板锁 RGMII
+ *
+ * ✅ PHY 地址 = 1（strap 电阻实测 + 贴装状态确认）
+ *    PHYAD0(pin22,RXD3)  R78 贴 → A_3V3 = 1
+ *    PHYAD1(pin27,RXCLK) R79 贴 → GND    = 0
+ *    PHYAD2(pin26,RXCTL) R80 贴 → GND    = 0
+ *    → 3'b001 = 1
+ *
+ * ✅ RGMII 延时（参考 BananaPi M2S 做法，strap 贴装状态实测）
+ *    TXDLY(pin24,RXD1)：**R77 贴→A_3V3 = 1 → PHY 加 2ns**（R76 不贴，预留空位）
+ *    RXDLY(pin25,RXD0)：**R74 贴→GND    = 0 → PHY 不加**  （R75 不贴）
+ *    → **仅 TX 有 2ns 延时，RX 无延时**
+ *
+ * ✅✅ phy-mode = "rgmii-id"（**基于 PCB 实测长度数据定案**）
+ *
+ * PCB 等长网络组实测（立创 EDA 面板）：
+ *   TX 组(6): TXCLK 485.1 / TXD3 484.2 / TXEN 483.5 / TXD0 481.9 / TXD1 480.2 / TXD2 478.6 mil
+ *   RX 组(6): RXCLK 755.9 / RXD1 755.9 / RXD3 755.9 / RXDV 755.9 / RXD0 751.8 / RXD2 748.6 mil
+ *
+ *   → TX 组内散布 6.5 mil ≈ **0.98 ps**；RX 组内散布 7.3 mil ≈ **1.10 ps**
+ *   → clock 相对最长 data 仅偏0.14 ps(TX) / 0 ps(RX)
+ *   → RGMII 需求 2000 ps，**PCB 只能提供 0.007%**
+ *   → **PCB 是标准等长设计，2ns 完全靠 PHY 内部延迟线提供**
+ *   （2ns 若靠 PCB 走线需 ~13000 mil，与实际 500/750 mil 差一个数量级）
+ *
+ * → mainline `rtl8211f_config_init()` 在 "rgmii-id" 下会用软件寄存器
+ *   **强制打开 TX+RX 双向 2ns**，因此：
+ *   - ✅ 不依赖 PHY strap 状态（strap 只是上电默认值，驱动会覆盖）
+ *   - ✅ **无需改动任何硬件**（RXDLY 上拉/下拉都无所谓）
+ *   - ❌ 禁用 "rgmii"：驱动会把 PHY 两个延时都关掉 → 时序崩溃、千兆链路起不来
+ *   -❌ 禁用 "rgmii-txid"/"rgmii-rxid"：只开单向，RX 或 TX 缺 2ns
+ *
+ *   与 Khadas VIM3（同A311D + RTL8211F）mainline DTS 配置一致。
+ */
+&gmac0 {
+    status = "okay";
+    phy-mode = "rgmii-id";
+
+    pinctrl-0 = <&eth_rgmii_pins>;
+    pinctrl-names = "default";
+
+    /* 底板已用 R50(0Ω) 把 RGMII_RST# 直通到 PHY0_RSTN，核心板拉低即复位 PHY */
+
+    &mdio {
+        /* PHY 地址 1，由 strap 电阻硬定：R79/R80→GND, R78→A_3V3 */
+        phy_0: ethernet-phy@1 {
+            compatible = "ethernet-phy-ieee802.3-c22";
+            reg = <1>;                       /* 3'b001，strap 实测确认 */
+            max-link-speed = <1000>;
+        };
+    };
+};
+
+/* ===========================================================================
+ * 2. SPI —— SPI 屏（FPC5）
+ * ===========================================================================
+ * SPI_B : MOSI=GPIOH_4, MISO=GPIOH_5, CS=GPIOH_7, SCLK=GPIOH_6  → FPC5
+ * 屏控制: RST=GPIOA_3, RS=GPIOA_4（普通 GPIO，非 SoC SPI 复用）
+ * 背光  : LCD_BL_EN=GPIOH_8 → Q15(MMBT3906 PNP) → SPI_LEDA → FPC5-1
+ *
+ * ⚠ SPI bank 由厂商 pinctrl 决定 → [厂商核对]
+ */
+&spi_B {
+    status = "okay";
+
+    pinctrl-0 = <&spi_b_pins>;
+    pinctrl-names = "default";
+
+    num-cs = <1>;
+    cs-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_LOW>;   /* SPI_B_SS0 */
+
+    /* SPI_LEDA(GPIOH_8) 由背光开关单独控制，不走 SPI 数据线 */
+};
+
+/* ===========================================================================
+ * 3. GPIO 控制组 —— 背光 / 运行灯 / 屏 RST-RS
+ * ===========================================================================
+ * 极性对照（务必看清，方向相反）：
+ *   GPIOH_8  → Q15(MMBT3906 **PNP** 高边) → **ACTIVE_LOW**（拉低背光亮）
+ *   GPIOAO_10→ Q8 (PMBS3904 **NPN** 低边) → **ACTIVE_HIGH**（拉高灯亮）
+ */
+&gpio_ctrl {
+    /* ---- LCD 背光开关：GPIOH_8 → Q15(PNP) → 3.3V 导通 ---- */
+    lcd-backlight-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
+
+    /* ---- SPI 屏复位 / 寄存器选择：普通 GPIO ---- */
+    lcd-rst-gpios = <&gpio GPIOA_3 GPIO_ACTIVE_HIGH>;   /* 极性按屏模组手册 */
+    lcd-rs-gpios  = <&gpio GPIOA_4 GPIO_ACTIVE_HIGH>;
+};
+
+/* ===========================================================================
+ * 4. 运行指示灯 —— LED4
+ * ===========================================================================
+ * Q8(PMBS3904, NPN) 低边开关：Emitter→GND，Base←R110(100Ω)←GPIOAO_10
+ * A_3V3 → R108(4.7kΩ) → LED4 → Q8 → GND
+ * LED1/LED2/LED3 直连电源与地，无 GPIO → 不声明
+ *
+ * 节点声明见下方 &leds（含 heartbeat）
+ */
+
+/* 运行灯：开机即心跳亮，可运行时切频率档 */
+&leds {
+    status = "okay";
+    compatible = "gpio-leds";
+
+    run_led {
+        label = "run";
+        gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+
+        /* 内核心跳：开机自亮，无需用户态
+         * 频率分档，运行时可调：
+         *   echo 1   > beat   熄灭
+         *   echo 2   > beat   常亮
+         *   echo 62  > beat   快闪档
+         *   echo 130 > beat   1秒周期
+         *   echo 190 > beat   4秒周期
+         *   echo 255 > beat   10秒周期
+         * 要任意频率 → 另跑用户态脚本写 brightness
+         */
+        linux,default-trigger = "heartbeat";
+        state = "on";
+    };
+};
+
+/* ⚠ 节点归属：本 leds 控A311D 的 GPIOAO_10 → 应放在**核心板 DT**。
+ * 若厂家 BSP 已定义 leds，在其之后 include 本文件即可覆盖。
+ *
+ * ⚠ AO 域优势：gpio_ao 的 can_sleep=false，心跳定时器可在 atomic
+ *   上下文直接改寄存器，不会 "Cannot sleep while holding a GPIO"。
+ *   s2idle 浅睡期间心跳继续闪；S3 深睡 CPU 停则不闪（非 GPIO 问题）。
+ */
+
+/* ===========================================================================
+ * 5. 红外接收 —— U38 IRM-V838M3-C/TR1
+ * ===========================================================================
+ * 链路: U38.3 → R116/R115 → CN3-75(IR_IN) → 核心板 GPIOAO_5
+ * 复用名: IR_REMOTE_IN / PWMAO_D
+ * AO 域 → 休眠保持，可做唤醒源
+ */
+&ir {
+    status = "okay";
+    gpios = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_LOW>;
+};
+
+/* ===========================================================================
+ * 6. 温湿度传感器 —— 两颗 SHT40 (0x44)
+ * ===========================================================================
+ * U42 @ TOUCH_I2C  → CN2-62/64 → GPIOA_14/A15 (I2C_EE_M3)，供电 A_3V3
+ *                    共线还有 FPC3 触控座（未贴，bom=no）
+ * U45 @ I2C_AO_S0 → AO 域（经 CN3），供电 VDDIO_AO18(1.8V)
+ *
+ * ✅ 两颗同地址 0x44 但在**不同 I2C 控制器**上 → 合法共存
+ * ⚠ 切勿把两者挂到同一个 &i2c 控制器下 → 地址冲突，总线锁死
+ * ⚠ I2C 控制器节点名/总线号以厂商 BSP 为准 → [厂商核对]
+ */
+&i2c_ee_m3 {                      /* [厂商核对] 节点名 */
+    status = "okay";
+
+    sht40_ee: sht40@44 {
+        compatible = "sensirion,sht4x";
+        reg = <0x44>;
+    };
+};
+
+&i2c_ao_s0 {                      /* [厂商核对] 节点名 */
+    status = "okay";
+
+    sht40_ao: sht40@44 {
+        compatible = "sensirion,sht4x";
+        reg = <0x44>;
+    };
+};
+
+/* ===========================================================================
+ * 7. WiFi / BT —— AP6256 (U40)
+ * ===========================================================================
+ * SDIO  : WIFI_SD_* → CN3-44~54 → 核心板；固定占 &sd_emmc_a
+ *         （A311D 仅 1 个 SDIO 控制器，无备选）
+ * 控制  : GPIOX_6(U40-12)、GPIOX_7(U40-13)、GPIOX_19(U40-6)
+ * UART  : BTUART_A_* → CN3-74~80
+ * PCM   : BTPCM_*    → CN3-64~70
+ *
+ * ⚠ AP6256 驱动(brcmfmac/ap6256) 通常在厂商核心板 DTS 中，本板仅引线
+ *   → GPIOX_6/7/19 若已被厂商占用需核对（[厂商核对]）
+ */
+&sd_emmc_a {
+    status = "okay";
+    bus-width = <4>;
+    non-removable;
+    cap-sdio-irq;
+    keep-power-in-suspend;
+    max-frequency = <200000000>;
+
+    mmc-pwrseq = <&brcmf_wifi_pwrseq>;    /* [厂商核对] */
+
+    brcmf: wifi@1 {
+        compatible = "brcmfmac43430-sdio";
+        reg = <1>;
+    };
+};
+
+/* ===========================================================================
+ * 8. PCIe / USB3.0 切换 —— FUSB340TMX (U28)
+ * ===========================================================================
+ * GPIOA_2 → CN2-36 → R86(0Ω) → FUSB340 `.6=SEL`
+ * `.7=OE` 直接接GND（恒使能，0=Switches Enabled）
+ *
+ *   GPIOA_2 = LOW  → SEL=0 → SW1 → **USB3.0**
+ *   GPIOA_2 = HIGH → SEL=1 → SW2 → **PCIe**
+ *
+ * ⚠pcie 与 USB3 互斥，切换需驱动配合（非运行时自动）
+ */
+&pcie {
+    status = "okay";
+
+    reset-gpios = <&gpio GPIOA_2 GPIO_ACTIVE_LOW>;  /* 0=USB3.0, 1=PCIe */
+};
+
+/* ===========================================================================
+ * 9. MT9700 —— USB OTG VBUS 开关【无需任何节点】
+ * ===========================================================================
+ * EN 已改电阻上拉常开 → 永久导通 → GPIOAO_11 已释放
+ * SET 脚 R159=6.8kΩ → ILIM ≈ 1A(typ)
+ * 保护全为硬件：限流 / 反向阻断 / 热关断135°C / UVLO 2.2V
+ * 无 I2C、无寄存器 → 不存在 Linux 驱动 → DTS 不声明
+ * → 切勿在 DTS 里引用 GPIOAO_11
+ */
+
+/* ===========================================================================
+ * 10. USB3.0 Hub —— U31 SL6341D【无需 SoC 控制】
+ * ===========================================================================
+ * U30(FSW3410) bom=no 未贴；U31(SL6341D) bom=yes 才是实际使用
+ * RSTN(pin31) 已由 C126+R95 硬件复位 → **不接 GPIO**
+ * ⚠ 曾评估用 GPIOA_7 控其复位，结论否决：
+ *    Hub 无需运行时复位，且驱动异常触发复位会导致已枚举 USB 设备全部掉线
+ * → GPIOA_7 保留给核心板
+ */
+
+/* ===========================================================================
+ * 11. 未使用器件 —— DTS 一律不引用
+ * ===========================================================================
+ * U4 (RT9013-18GB)      bom=no | VDDCPU_B_EN(R6/R12/Q2) 整链未使用
+ * U30(FSW3410)          bom=no | USB3 控制器未贴
+ * Q1 (2KJ7107DFN)       bom=no | P_G 支路
+ * Q2 (PMBT3904)         bom=no | P_G 支路
+ * Q13/Q14 (MS3134)      bom=no | 原摄像头 I2C 电平转换
+ * SW5                   bom=no | ADC 键
+ * FPC3 各脚FPC30-T1T1-2010-A  bom=no
+ * R121/R130/R124/R126/R128/R10/R123  预留位(0Ω/22Ω)
+ * CN6 / FPC6            已删除
+ */
+
+/* ===========================================================================
+ * 12. 其他屏蔽项
+ * ===========================================================================
+ * &csi / &csi2   —— 摄像头未使用，不声明
+ * &sdio相关摄像头 —— 不声明
+ * adc-keys       —— SARADC_CH0/CH3 均悬空，SW5 未贴，不声明
+ * gpio-keys      —— 4 个按键(全非GPIO 直连)，底板不声明
+ *                   SW2→PWR_RST / SW3→EMMC_KEY / SW4→PWR_KEY_DET / SW5→ADC_KEY
+ *                   (R112/R113/R114 均为 **100Ω**，非 1k)
+ *                   其中 PWR_KEY_DET(CN3-43) 可在**核心板**做 power 唤醒键
+ * SPI_LEDA(GPIOH_8) —— 不走 SPI 数据线，是独立背光开关
+ * GPIOAO_11   —— 已释放（MT9700 EN 改硬件常开）
+ */

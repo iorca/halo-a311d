@@ -1,0 +1,37 @@
+/**
+ * MAIN_V0.3 — PCIe / USB3.0 冷切换脚本（U-Boot）
+ *
+ * 用途：按 FUSB340 的 SEL 引脚电平，自动挑选对应的 DTB。
+ *
+ * 【为什么必须冷切换】
+ *   A311D 的 PCIe 与 USB3 共用 combo PHY（usb3_pcie_phy）：
+ *     &pcie → phys = <&usb3_pcie_phy PHY_TYPE_PCIE>
+ *     &usb  → phys = <&usb3_pcie_phy PHY_TYPE_USB3>
+ *   DTS 是编译期静态绑定，运行期改 GPIO 无法同步 SoC 内部 PHY 归属。
+ *   故在 U-Boot 阶段按跳线电平选不同的 dtb，重启一次即彻底切换。
+ *
+ * 【硬件前提】
+ *   GPIOA_2 → CN2-36 → R86(0Ω) → FUSB340 .6(SEL)
+ *   板上 R85(4.7k→GND) 与 R87(4.7k→A_3V3) 二选一跳线：
+ *     贴 R85(下拉) → SEL=LOW  → SW1 → USB3.0
+ *     贴 R87(上拉) → SEL=HIGH → SW2 → PCIe
+ *   注意：FUSB340 规格书明确 "control inputs must not float"，
+ *         所以 R85/R87 必须**二选一**，不能都不贴。
+ *
+ * 【用法】放进 U-Boot（/boot 下的 .scr 或 boot.cmd）
+ *   setenv althea_sel_gpio FUSB340_SEL
+ *   source /boot/althaea-mode.scr
+ *
+ *   然后在原有 bootm 之前调用；或直接由 bootcmd 调用本脚本。
+ */
+
+/* 由 DT 的 gpio-ranges 动态推算编号，避开硬编码 */
+if gpio status ${althea_sel_gpio}; then
+    echo "FUSB340 SEL = 1 (HIGH) -> PCIe mode"
+    setenv fdt /boot/meson-althaea-pcie.dtb
+else
+    echo "FUSB340 SEL = 0 (LOW)  -> USB3.0 mode"
+    setenv fdt /boot/meson-althaea-usb3.dtb
+fi
+
+echo "Booting with ${fdt}"

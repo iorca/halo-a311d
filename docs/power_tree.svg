@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="880" font-family="Consolas,SimHei,sans-serif" font-size="11">
+<defs><marker id="m" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#2c3e50"/></marker><marker id="md" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#c0392b"/></marker></defs>
+<rect width="1180" height="880" fill="#ffffff"/>
+<text x="20" y="26" font-size="17" font-weight="bold">MAIN_V0.3 电源树 (Power Tree) — 由 Protel2 网表自动解析</text>
+<line x1="275" y1="130" x2="335" y2="130" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="545" y1="130" x2="485" y2="130" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="410" y1="153" x2="410" y2="212" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="910" y1="130" x2="485" y2="130" stroke-width="2.2" stroke-dasharray="6,4" stroke="#c0392b" marker-end="url(#md)"/>
+<text x="698" y="126" font-size="10" fill="#c0392b" text-anchor="middle">控制栅极</text>
+<line x1="410" y1="258" x2="250" y2="322" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="410" y1="258" x2="570" y2="322" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="250" y1="368" x2="120" y2="452" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="250" y1="368" x2="300" y2="452" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="250" y1="368" x2="450" y2="452" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="570" y1="368" x2="640" y2="452" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="570" y1="368" x2="820" y2="452" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="120" y1="498" x2="120" y2="742" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="640" y1="498" x2="120" y2="592" stroke-width="2.2" stroke-dasharray="6,4" stroke="#c0392b" marker-end="url(#md)"/>
+<text x="380" y="541" font-size="10" fill="#c0392b" text-anchor="middle">VIN 待确认</text>
+<line x1="120" y1="592" x2="120" y2="498" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<text x="120" y="541" font-size="10" fill="#c0392b" text-anchor="middle">并联 buck</text>
+<line x1="120" y1="498" x2="300" y2="592" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="300" y1="638" x2="300" y2="742" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="120" y1="498" x2="450" y2="592" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="450" y1="638" x2="450" y2="742" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="640" y1="498" x2="640" y2="592" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="640" y1="638" x2="640" y2="742" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="640" y1="498" x2="820" y2="592" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="820" y1="638" x2="820" y2="742" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="640" y1="498" x2="980" y2="592" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<line x1="980" y1="638" x2="980" y2="742" stroke-width="2.2" stroke="#2c3e50" marker-end="url(#m)"/>
+<rect x="125" y="107" width="150" height="46" rx="6" fill="#e67e22" stroke="#1b2631" stroke-width="1.2"/>
+<text x="200" y="127" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">DC_IN</text>
+<text x="200" y="142" font-size="9" fill="#fdfefe" text-anchor="middle">筒形插座 CN12/14/16/18/110/112 + U21功放</text>
+<rect x="545" y="107" width="150" height="46" rx="6" fill="#e67e22" stroke="#1b2631" stroke-width="1.2"/>
+<text x="620" y="127" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">DC_INB</text>
+<text x="620" y="142" font-size="9" fill="#fdfefe" text-anchor="middle">USB-C VBUS USB1 B9/A9/B4/A4</text>
+<rect x="335" y="107" width="150" height="46" rx="6" fill="#d35400" stroke="#1b2631" stroke-width="1.2"/>
+<text x="410" y="127" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">Q35-Q39 + D21</text>
+<text x="410" y="142" font-size="9" fill="#fdfefe" text-anchor="middle">理想二极管 OR-ing</text>
+<rect x="910" y="107" width="150" height="46" rx="6" fill="#16a085" stroke="#1b2631" stroke-width="1.2"/>
+<text x="985" y="127" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">CH224K (U6)</text>
+<text x="985" y="142" font-size="9" fill="#fdfefe" text-anchor="middle">PD 协商芯片 CC1/CC2/D+/D-</text>
+<rect x="335" y="212" width="150" height="46" rx="6" fill="#34495e" stroke="#1b2631" stroke-width="1.2"/>
+<text x="410" y="232" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">DC_IN (合并)</text>
+<text x="410" y="247" font-size="9" fill="#fdfefe" text-anchor="middle">NB680GD VIN (U1/U2 pin1)</text>
+<rect x="175" y="322" width="150" height="46" rx="6" fill="#2980b9" stroke="#1b2631" stroke-width="1.2"/>
+<text x="250" y="342" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">U1 NB680GD</text>
+<text x="250" y="357" font-size="9" fill="#fdfefe" text-anchor="middle">3.3V PMIC</text>
+<rect x="495" y="322" width="150" height="46" rx="6" fill="#2980b9" stroke="#1b2631" stroke-width="1.2"/>
+<text x="570" y="342" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">U2 NB680GD</text>
+<text x="570" y="357" font-size="9" fill="#fdfefe" text-anchor="middle">5V PMIC</text>
+<rect x="45" y="452" width="150" height="46" rx="6" fill="#27ae60" stroke="#1b2631" stroke-width="1.2"/>
+<text x="120" y="472" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">A_3V3</text>
+<text x="120" y="487" font-size="9" fill="#fdfefe" text-anchor="middle">主 3.3V (U1 buck)</text>
+<rect x="225" y="452" width="150" height="46" rx="6" fill="#27ae60" stroke="#1b2631" stroke-width="1.2"/>
+<text x="300" y="472" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">LDO_3V3</text>
+<text x="300" y="487" font-size="9" fill="#fdfefe" text-anchor="middle">U1 内部 LDO</text>
+<rect x="375" y="452" width="150" height="46" rx="6" fill="#27ae60" stroke="#1b2631" stroke-width="1.2"/>
+<text x="450" y="472" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">NB_V3</text>
+<text x="450" y="487" font-size="9" fill="#fdfefe" text-anchor="middle">U1 3.3V</text>
+<rect x="565" y="452" width="150" height="46" rx="6" fill="#c0392b" stroke="#1b2631" stroke-width="1.2"/>
+<text x="640" y="472" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">VCC5V</text>
+<text x="640" y="487" font-size="9" fill="#fdfefe" text-anchor="middle">主 5V (U2 buck)</text>
+<rect x="745" y="452" width="150" height="46" rx="6" fill="#c0392b" stroke="#1b2631" stroke-width="1.2"/>
+<text x="820" y="472" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">NB_V5</text>
+<text x="820" y="487" font-size="9" fill="#fdfefe" text-anchor="middle">U2 5V</text>
+<rect x="45" y="592" width="150" height="46" rx="6" fill="#8e44ad" stroke="#1b2631" stroke-width="1.2"/>
+<text x="120" y="612" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">U7 SY8088</text>
+<text x="120" y="627" font-size="9" fill="#fdfefe" text-anchor="middle">3.3V buck (并联 U1)</text>
+<rect x="225" y="592" width="150" height="46" rx="6" fill="#8e44ad" stroke="#1b2631" stroke-width="1.2"/>
+<text x="300" y="612" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">U3 RT9013</text>
+<text x="300" y="627" font-size="9" fill="#fdfefe" text-anchor="middle">1.8V LDO</text>
+<rect x="375" y="592" width="150" height="46" rx="6" fill="#8e44ad" stroke="#1b2631" stroke-width="1.2"/>
+<text x="450" y="612" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">U4 RT9013</text>
+<text x="450" y="627" font-size="9" fill="#fdfefe" text-anchor="middle">1.8V LDO</text>
+<rect x="565" y="592" width="150" height="46" rx="6" fill="#8e44ad" stroke="#1b2631" stroke-width="1.2"/>
+<text x="640" y="612" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">U8 MT9700</text>
+<text x="640" y="627" font-size="9" fill="#fdfefe" text-anchor="middle">负载开关</text>
+<rect x="745" y="592" width="150" height="46" rx="6" fill="#8e44ad" stroke="#1b2631" stroke-width="1.2"/>
+<text x="820" y="612" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">U32 MT9700</text>
+<text x="820" y="627" font-size="9" fill="#fdfefe" text-anchor="middle">负载开关</text>
+<rect x="905" y="592" width="150" height="46" rx="6" fill="#8e44ad" stroke="#1b2631" stroke-width="1.2"/>
+<text x="980" y="612" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">U33 MT9700</text>
+<text x="980" y="627" font-size="9" fill="#fdfefe" text-anchor="middle">负载开关</text>
+<rect x="45" y="742" width="150" height="46" rx="6" fill="#95a5a6" stroke="#1b2631" stroke-width="1.2"/>
+<text x="120" y="762" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">A_3V3 负载</text>
+<text x="120" y="777" font-size="9" fill="#fdfefe" text-anchor="middle">SoC / Q11-Q18 等</text>
+<rect x="225" y="742" width="150" height="46" rx="6" fill="#95a5a6" stroke="#1b2631" stroke-width="1.2"/>
+<text x="300" y="762" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">VDDIO_AO18</text>
+<text x="300" y="777" font-size="9" fill="#fdfefe" text-anchor="middle">SoC AO 域</text>
+<rect x="375" y="742" width="150" height="46" rx="6" fill="#95a5a6" stroke="#1b2631" stroke-width="1.2"/>
+<text x="450" y="762" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">VCC1.8V</text>
+<text x="450" y="777" font-size="9" fill="#fdfefe" text-anchor="middle">1.8V 负载</text>
+<rect x="565" y="742" width="150" height="46" rx="6" fill="#95a5a6" stroke="#1b2631" stroke-width="1.2"/>
+<text x="640" y="762" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">5V_OTG</text>
+<text x="640" y="777" font-size="9" fill="#fdfefe" text-anchor="middle">→ USB4</text>
+<rect x="745" y="742" width="150" height="46" rx="6" fill="#95a5a6" stroke="#1b2631" stroke-width="1.2"/>
+<text x="820" y="762" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">VBUS_1</text>
+<text x="820" y="777" font-size="9" fill="#fdfefe" text-anchor="middle">→ USB2</text>
+<rect x="905" y="742" width="150" height="46" rx="6" fill="#95a5a6" stroke="#1b2631" stroke-width="1.2"/>
+<text x="980" y="762" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">VBUS_2</text>
+<text x="980" y="777" font-size="9" fill="#fdfefe" text-anchor="middle">→ USB3</text>
+<rect x="700" y="60" width="460" height="92" rx="6" fill="#f4f6f7" stroke="#bdc3c7"/>
+<text x="712" y="80" font-size="12" font-weight="bold" fill="#2c3e50">图例 / 说明</text>
+<line x1="712" y1="100" x2="752" y2="100" stroke="#2c3e50" stroke-width="2.2" marker-end="url(#m)"/>
+<text x="760" y="103" font-size="10" fill="#2c3e50">已确认路径（网表引脚-网络映射）</text>
+<line x1="712" y1="122" x2="752" y2="122" stroke="#c0392b" stroke-width="2.2" stroke-dasharray="6,4" marker-end="url(#md)"/>
+<text x="760" y="125" font-size="10" fill="#c0392b">待核对：CH224K 控制 OR-ing 栅极；U7 VIN 来自 VCC5V</text>
+<text x="712" y="143" font-size="10" fill="#2c3e50">注：A_3V3 由 U1(NB680GD) 与 U7(SY8088) 双 buck 并联供电</text>
+</svg>

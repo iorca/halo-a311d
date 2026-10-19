@@ -1,0 +1,3962 @@
+{
+ "U6": {
+  "parttype": "CH224K",
+  "value": "",
+  "designator_value": "",
+  "footprint": "ESSOP-10_L4.9-W3.9-P1.0-LS6.0-TL-EP",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R13": {
+  "parttype": "0603WAF2402T5E",
+  "value": "24kΩ",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C34": {
+  "parttype": "CGA0603X5R105K500JT",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R14": {
+  "parttype": "FRC0603F1001TS",
+  "value": "1kΩ",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "D1": {
+  "parttype": "BZT52C12_C707142",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOD-123_L2.7-W1.6-LS3.7-RD-1",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R17": {
+  "parttype": "0603WAF1002T5E",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C42": {
+  "parttype": "CL21A106KAYNNNE_C15850",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C7": {
+  "parttype": "CL05B104KO5NNNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C5": {
+  "parttype": "CL10B224KA8NNNC",
+  "value": "220nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R3": {
+  "parttype": "FRC0603F3R30TS",
+  "value": "3.3Ω",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C11": {
+  "parttype": "CC0805KRX7R9BB104",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C13": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C12": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U1": {
+  "parttype": "NB680GD",
+  "value": "",
+  "designator_value": "",
+  "footprint": "QFN-12_L3.0-W2.0-P0.5-TL_NB680",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R2": {
+  "parttype": "0402WGF1103TCE",
+  "value": "110kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C1": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C3": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "LED1": {
+  "parttype": "NCD0402G1",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C2": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R1": {
+  "parttype": "FRC0402F1003TS",
+  "value": "100kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R5": {
+  "parttype": "0402WGF4702TCE",
+  "value": "47kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C14": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q1": {
+  "parttype": "2KJ7107DFN",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L2.0-W2.0-P0.65-BL-EP_BUK6D120-60PX",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R6": {
+  "parttype": "FRC0402F1003TS",
+  "value": "100kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "Q2": {
+  "parttype": "PMBT3904",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-3_L2.9-W1.3-P1.90-LS2.4-BR",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R4": {
+  "parttype": "0402WGF4702TCE",
+  "value": "47kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C33": {
+  "parttype": "CL05B104KO5NNNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C8": {
+  "parttype": "FCC0603X106K100CT",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "U3": {
+  "parttype": "RT9013-18GB",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C24": {
+  "parttype": "FCC0603X106K100CT",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C21": {
+  "parttype": "FCC0603X106K100CT",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C20": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C25": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U4": {
+  "parttype": "RT9013-18GB",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BR",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C9": {
+  "parttype": "FCC0603X106K100CT",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C15": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C30": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C31": {
+  "parttype": "FCC0603X106K100CT",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R15": {
+  "parttype": "0402WGF1103TCE",
+  "value": "110kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "USB1": {
+  "parttype": "MC-711",
+  "value": "",
+  "designator_value": "",
+  "footprint": "USB-C-SMD_HANBO_MC-711-H67",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C41": {
+  "parttype": "CL21A106KAYNNNE_C15850",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R11": {
+  "parttype": "FRC0402F1002TS",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R12": {
+  "parttype": "FRC0402F1002TS",
+  "value": "0R",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R9": {
+  "parttype": "FRC0603F3R30TS",
+  "value": "3.3Ω",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U2": {
+  "parttype": "NB680GD",
+  "value": "",
+  "designator_value": "",
+  "footprint": "QFN-12_L3.0-W2.0-P0.5-TL_NB680",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C19": {
+  "parttype": "CL10B224KA8NNNC",
+  "value": "220nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C23": {
+  "parttype": "CL05B104KO5NNNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C28": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C27": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C26": {
+  "parttype": "CC0805KRX7R9BB104",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "L2": {
+  "parttype": "YSMC0420H-1R5MG",
+  "value": "1.5uH",
+  "designator_value": "",
+  "footprint": "IND-SMD_L4.1-W4.1_PSTMAA4020",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C29": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R8": {
+  "parttype": "0402WGF1103TCE",
+  "value": "110kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "LED2": {
+  "parttype": "NCD0402G1",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C17": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C32": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R7": {
+  "parttype": "0402WGF4702TCE",
+  "value": "47kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R10": {
+  "parttype": "FRC0402F1002TS",
+  "value": "0R",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C22": {
+  "parttype": "CL05B104KO5NNNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C6": {
+  "parttype": "CL05B104KO5NNNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C10": {
+  "parttype": "CL05B104KO5NNNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U7": {
+  "parttype": "SY8088IAAC",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C39": {
+  "parttype": "CL10A226MP8NUNE",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C38": {
+  "parttype": "CL10A226MP8NUNE",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R18": {
+  "parttype": "0402WGF1103TCE",
+  "value": "7.5kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R16": {
+  "parttype": "0402WGF5103TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C36": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C35": {
+  "parttype": "CL10A226MP8NUNE",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "L3": {
+  "parttype": "CKCS201610-2.2uH/M",
+  "value": "2.2uH",
+  "designator_value": "",
+  "footprint": "IND-SMD_L2.0-W1.6_1",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C18": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C16": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C4": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C40": {
+  "parttype": "CL10A226MP8NUNE",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C37": {
+  "parttype": "CC0402JRNPO9BN220",
+  "value": "22pF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U5": {
+  "parttype": "1N5819WT_C5451630",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOD-523_L1.2-W0.8-LS1.6-RD",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R19": {
+  "parttype": "FRC0402F1000TS",
+  "value": "1K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C47": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C46": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C45": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C44": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "D2": {
+  "parttype": "SMAJ16A_C74561",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SMA_L4.3-W2.6-LS5.2-RD",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q3": {
+  "parttype": "XR3419",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-8_L3.0-W3.0-P0.65-BL-4",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "LED3": {
+  "parttype": "NCD0402G1",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "L1": {
+  "parttype": "FTC404020S2R2MGCA",
+  "value": "2.2uH",
+  "designator_value": "",
+  "footprint": "IND-SMD_L4.1-W4.1_FTC404020S",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q4": {
+  "parttype": "XR3419",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-8_L3.0-W3.0-P0.65-BL-4",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R162": {
+  "parttype": "FRC0402F1000TS",
+  "value": "100K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C185": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C183": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C186": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C184": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R163": {
+  "parttype": "FRC0402F1000TS",
+  "value": "100r",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R173": {
+  "parttype": "FRC0402F1000TS",
+  "value": "50K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "yes"
+ },
+ "CN1": {
+  "parttype": "AXK5F80337YG",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-SMD_80P-P0.50_AXK5F80337YG",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "CN2": {
+  "parttype": "AXK5F80337YG",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-SMD_80P-P0.50_AXK5F80337YG",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "CN3": {
+  "parttype": "AXK5F80337YG",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-SMD_80P-P0.50_AXK5F80337YG",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "H1": {
+  "parttype": "HOLE",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SCREW",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "H2": {
+  "parttype": "HOLE",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SCREW",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "H4": {
+  "parttype": "HOLE",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SCREW",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "H5": {
+  "parttype": "HOLE",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SCREW",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "H6": {
+  "parttype": "HOLE",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SCREW",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "H7": {
+  "parttype": "HOLE",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SCREW",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "H3": {
+  "parttype": "HOLE",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SCREW",
+  "add_bom": "no",
+  "to_pcb": "yes"
+ },
+ "H8": {
+  "parttype": "HOLE",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SCREW",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "P2": {
+  "parttype": "SMTSO2025CTJ",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SMD-1_BD6.2-D3.6",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "P1": {
+  "parttype": "SMTSO2025CTJ",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SMD-1_BD6.2-D3.6",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "P3": {
+  "parttype": "SMTSO2025CTJ",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SMD-1_BD6.2-D3.6",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "P4": {
+  "parttype": "SMTSO2025CTJ",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SMD-1_BD6.2-D3.6",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R26": {
+  "parttype": "FRC0603F0000TS",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R27": {
+  "parttype": "FRC0603F0000TS",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C48": {
+  "parttype": "CL10A475KP8NNNC",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R24": {
+  "parttype": "FRC0402F1002TS",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U10": {
+  "parttype": "HYCW-TZ027",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-TH_HYCW-TZ027",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U12": {
+  "parttype": "HYCW-TZ027",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-TH_HYCW-TZ027",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U13": {
+  "parttype": "HYCW-TZ027",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-TH_HYCW-TZ027",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U11": {
+  "parttype": "HYCW-TZ027",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-TH_HYCW-TZ027",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U9": {
+  "parttype": "1N5819WT_C5451630",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOD-523_L1.2-W0.8-LS1.6-RD",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R170": {
+  "parttype": "FRC0603F0000TS",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "CN4": {
+  "parttype": "HYC70-HDMIA19-230",
+  "value": "",
+  "designator_value": "",
+  "footprint": "HDMI-TH_HYC70-HDMIA19-230",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R29": {
+  "parttype": "RC0402FR-0710KL",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R30": {
+  "parttype": "Res_0402",
+  "value": "1.8K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R28": {
+  "parttype": "RC0402FR-0710KL",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R33": {
+  "parttype": "RC0402FR-0710KL",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R31": {
+  "parttype": "RC0402FR-0710KL",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R32": {
+  "parttype": "0603WAF0000T5E",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R36": {
+  "parttype": "RT0402BRD07100KL",
+  "value": "100kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R34": {
+  "parttype": "Res_0402",
+  "value": "1.8K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U18": {
+  "parttype": "ESD73034D-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN2510-10_L2.5-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "no"
+ },
+ "U19": {
+  "parttype": "ESD73034D-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN2510-10_L2.5-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "no"
+ },
+ "D3": {
+  "parttype": "B5819WS_C7420331",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOD-323_L1.7-W1.3-LS2.5-FD",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C49": {
+  "parttype": "CL21A106KAYNNNE_C15850",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "HDMI1": {
+  "parttype": "HDMI-01",
+  "value": "",
+  "designator_value": "",
+  "footprint": "USB-SMD_HDMI-01",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C50": {
+  "parttype": "GRM1555C1H472JE01D",
+  "value": "4.7nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q5": {
+  "parttype": "MS3134",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-723-3_L1.2-W0.8-LS1.20-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q6": {
+  "parttype": "MS3134",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-723-3_L1.2-W0.8-LS1.20-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q7": {
+  "parttype": "MS3134",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-723-3_L1.2-W0.8-LS1.20-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U20": {
+  "parttype": "1N5819WT_C5451630",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOD-523_L1.2-W0.8-LS1.6-RD",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "D4": {
+  "parttype": "HPESDNC2FD5VBS",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN1610-2_L1.6-W1.0-BI",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C51": {
+  "parttype": "CC0402KRX7R9BB102",
+  "value": "1nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R35": {
+  "parttype": "RC0402FR-0710KL",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U16": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U14": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U15": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U17": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U21": {
+  "parttype": "VA2213TSG28",
+  "value": "",
+  "designator_value": "",
+  "footprint": "TSSOP-28_L9.7-W4.4-P0.65-LS6.4-BL-EP",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C66": {
+  "parttype": "CGA0402X5R105K500GT",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C67": {
+  "parttype": "CGA0402X5R105K500GT",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C59": {
+  "parttype": "CGA0402X5R105K500GT",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C58": {
+  "parttype": "CGA0402X5R105K500GT",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R37": {
+  "parttype": "RT0603BRD0760KL",
+  "value": "60kΩ",
+  "designator_value": "",
+  "footprint": "RES-SMD_L1.55-W0.85",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R38": {
+  "parttype": "RC0603FR-0710RL",
+  "value": "10Ω",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C52": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R40": {
+  "parttype": "RC0402FR-0710KL",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C70": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R41": {
+  "parttype": "RC0402FR-0710KL",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R42": {
+  "parttype": "RT0402BRD07100KL",
+  "value": "100kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C63": {
+  "parttype": "CGA0402X5R224K500GT",
+  "value": "220nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C68": {
+  "parttype": "CGA0402X5R224K500GT",
+  "value": "220nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "L6": {
+  "parttype": "BLM15PX121SN1D",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "L7": {
+  "parttype": "BLM15PX121SN1D",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "L4": {
+  "parttype": "BLM15PX121SN1D",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C60": {
+  "parttype": "CGA0402X5R224K500GT",
+  "value": "220nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "L5": {
+  "parttype": "BLM15PX121SN1D",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C62": {
+  "parttype": "CGA0402X5R224K500GT",
+  "value": "220nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C61": {
+  "parttype": "FCC0402B102K500AT",
+  "value": "1nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C64": {
+  "parttype": "FCC0402B102K500AT",
+  "value": "1nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C69": {
+  "parttype": "FCC0402B102K500AT",
+  "value": "1nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C65": {
+  "parttype": "FCC0402B102K500AT",
+  "value": "1nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C53": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C54": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C55": {
+  "parttype": "CL10A106MA8NRNC",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C56": {
+  "parttype": "CL10A106MA8NRNC",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "CN5": {
+  "parttype": "HC-1.25-4PLT",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-SMD_4P-P1.25_HCTL_HC-1.25-4PLT",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "U22": {
+  "parttype": "LMD4030T261-OAC23",
+  "value": "",
+  "designator_value": "",
+  "footprint": "MIC-SMD_8P-L4.0-W3.0",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R39": {
+  "parttype": "FRC0402F1003TS",
+  "value": "100kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C57": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "U23": {
+  "parttype": "YT8531H-CA",
+  "value": "",
+  "designator_value": "",
+  "footprint": "QFN-40_L5.0-W5.0-P0.40-BL-EP3.7",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R51": {
+  "parttype": "0402WGF1801TCE",
+  "value": "1.8kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R52": {
+  "parttype": "0402WGF1801TCE",
+  "value": "1.8kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R50": {
+  "parttype": "0402WGF0000TCE",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R47": {
+  "parttype": "RC0402FR-072K49L",
+  "value": "2.49kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "X1": {
+  "parttype": "2520-25-9-10-10/A",
+  "value": "25MHz",
+  "designator_value": "",
+  "footprint": "XTAL_2520_S-24MHz_NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C75": {
+  "parttype": "TCC0402COG100K500AT",
+  "value": "10pF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C76": {
+  "parttype": "TCC0402COG100K500AT",
+  "value": "10pF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R44": {
+  "parttype": "0402WGF220JTCE",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R46": {
+  "parttype": "0402WGF0000TCE",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C73": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C74": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C78": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C79": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C81": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R43": {
+  "parttype": "CR0402FF1000G",
+  "value": "100Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R48": {
+  "parttype": "0402WGF1801TCE",
+  "value": "1.8kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C71": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R45": {
+  "parttype": "AECR0402F120RK9",
+  "value": "120Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R49": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R53": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R54": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R55": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R56": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R57": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R58": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R63": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R64": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R60": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R62": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R61": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R65": {
+  "parttype": "RC0201JR-0722RL",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R59": {
+  "parttype": "0402WGF0000TCE",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C80": {
+  "parttype": "HGC0402R5105K500NTEJ",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C77": {
+  "parttype": "HGC0402R5105K500NTEJ",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C72": {
+  "parttype": "CGA0402X5R475M250GT",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C82": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C201": {
+  "parttype": "HGC0402R5105K500NTEJ",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "L9": {
+  "parttype": "HR911130C",
+  "value": "",
+  "designator_value": "",
+  "footprint": "RJ45-TH_HR911130C",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C91": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R72": {
+  "parttype": "RC-02W511JT",
+  "value": "510Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R73": {
+  "parttype": "RC-02W511JT",
+  "value": "510Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C83": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C88": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C84": {
+  "parttype": "CL10A475KP8NNND",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R75": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R76": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R83": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R84": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R81": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R70": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R82": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "L8": {
+  "parttype": "FHD201610S-3R3MT",
+  "value": "3.3uH",
+  "designator_value": "",
+  "footprint": "IND-SMD_L2.0-W1.6",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C89": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "RJ2": {
+  "parttype": "R-RJ45R08P-D011",
+  "value": "",
+  "designator_value": "",
+  "footprint": "RJ45-TH_R-RJ45R08P-D011",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R69": {
+  "parttype": "0402WGJ0511TCE",
+  "value": "510Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R68": {
+  "parttype": "0402WGJ0511TCE",
+  "value": "510Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R74": {
+  "parttype": "1RC0201J0472",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R78": {
+  "parttype": "1RC0201J0472",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R79": {
+  "parttype": "1RC0201J0472",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R80": {
+  "parttype": "1RC0201J0472",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R71": {
+  "parttype": "1RC0201J0472",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R77": {
+  "parttype": "1RC0201J0472",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "RJ1": {
+  "parttype": "HR911131A",
+  "value": "",
+  "designator_value": "",
+  "footprint": "RJ45-TH_HR911131A",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R67": {
+  "parttype": "0402WGJ0511TCE",
+  "value": "510Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R66": {
+  "parttype": "0402WGJ0511TCE",
+  "value": "510Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C90": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U26": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U24": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U25": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U27": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C86": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C87": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C85": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C202": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C204": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C203": {
+  "parttype": "CL10A475KP8NNND",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C205": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C212": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C213": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C216": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C215": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C217": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U29": {
+  "parttype": "APCI0107-P001A_C7498140",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-SMD_APCI0107-P001A",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R90": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R88": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R93": {
+  "parttype": "0402WGF0000TCE",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R89": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C102": {
+  "parttype": "CGA0805X5R106K500MT",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C93": {
+  "parttype": "CGA0805X5R106K500MT",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C92": {
+  "parttype": "CL05A105KA5NQNC",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C98": {
+  "parttype": "CL05A105KA5NQNC",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U28": {
+  "parttype": "FUSB340TMX",
+  "value": "",
+  "designator_value": "",
+  "footprint": "TMLP-18_L2.8-W2.0-P0.40-BL-EP",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U30": {
+  "parttype": "FSW3410YQFN18G/TR",
+  "value": "",
+  "designator_value": "",
+  "footprint": "X2QFN-18_L2.8-W2-P0.4-TL",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C101": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C99": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C103": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C100": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R92": {
+  "parttype": "0402WGF0000TCE",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R91": {
+  "parttype": "0402WGF0000TCE",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C97": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C96": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C94": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C95": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R86": {
+  "parttype": "0402WGF0000TCE",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R87": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R85": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C211": {
+  "parttype": "CGA0805X5R106K500MT",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R94": {
+  "parttype": "0402WGF2000TCE",
+  "value": "200Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C104": {
+  "parttype": "CL10A226MP8NUNE",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "U31": {
+  "parttype": "SL6341D",
+  "value": "",
+  "designator_value": "",
+  "footprint": "QFN-56_L6.0-W6.0-P0.35-TL-EP4.7",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C126": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C130": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C131": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R95": {
+  "parttype": "0402WGF1002TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C109": {
+  "parttype": "GJM1555C1H150FB01D",
+  "value": "15pF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C108": {
+  "parttype": "GJM1555C1H150FB01D",
+  "value": "15pF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "TP1": {
+  "parttype": "Test-Point",
+  "value": "",
+  "designator_value": "",
+  "footprint": "Test-Point-0.5mm",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R98": {
+  "parttype": "0402WGF1002TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R97": {
+  "parttype": "0402WGF1002TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R96": {
+  "parttype": "0402WGF1002TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R100": {
+  "parttype": "0402WGF1002TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R99": {
+  "parttype": "0402WGF1002TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C142": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C141": {
+  "parttype": "CL10A226MP8NUNE",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C132": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C139": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C138": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C133": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C134": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C146": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C145": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C144": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C143": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C150": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C147": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C140": {
+  "parttype": "CL10A226MP8NUNE",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C136": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C135": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "L10": {
+  "parttype": "CBG160808U000T",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C110": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C106": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C112": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C114": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C118": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C121": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C125": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C129": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C105": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C107": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C113": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C111": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C119": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C115": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C123": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C120": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C124": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C122": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C117": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C116": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C137": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C149": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C148": {
+  "parttype": "GRM033R61E104KE14D",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0201 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C151": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "X2": {
+  "parttype": "XL2EL89COI-111YLC-24M",
+  "value": "24MHz",
+  "designator_value": "",
+  "footprint": "XTAL_3225_S_NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C189": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C190": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C207": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C208": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C210": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C209": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C152": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "no"
+ },
+ "C155": {
+  "parttype": "CGA0805X5R226M350MT",
+  "value": "22uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "U34": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R101": {
+  "parttype": "0402WGF1002TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C158": {
+  "parttype": "CL21A106KOQNNNE",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "no"
+ },
+ "C154": {
+  "parttype": "CL21A106KOQNNNE",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U32": {
+  "parttype": "MT9700",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R102": {
+  "parttype": "0402WGF3401TCE",
+  "value": "3.4kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C153": {
+  "parttype": "CL21A106KOQNNNE",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R104": {
+  "parttype": "0402WGF3401TCE",
+  "value": "3.4kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C156": {
+  "parttype": "CL21A106KOQNNNE",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C157": {
+  "parttype": "CL21A106KOQNNNE",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U33": {
+  "parttype": "MT9700",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C159": {
+  "parttype": "CL21A106KOQNNNE",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "no"
+ },
+ "R103": {
+  "parttype": "0402WGF1002TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "USB2": {
+  "parttype": "USB-303WSD-BRY",
+  "value": "",
+  "designator_value": "",
+  "footprint": "USB-A-TH_XUNPU_USB-303WSD-BRY",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "USB3": {
+  "parttype": "USB-303WSD-BRY",
+  "value": "",
+  "designator_value": "",
+  "footprint": "USB-A-TH_XUNPU_USB-303WSD-BRY",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "USB4": {
+  "parttype": "MC-711",
+  "value": "",
+  "designator_value": "",
+  "footprint": "USB-C-SMD_HANBO_MC-711-H67",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C43": {
+  "parttype": "CL21A106KAYNNNE_C15850",
+  "value": "10uF",
+  "designator_value": "",
+  "footprint": "C0805 NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U8": {
+  "parttype": "MT9700",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R158": {
+  "parttype": "0402WGF5103TCE",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R159": {
+  "parttype": "0402WGF5103TCE",
+  "value": "6.8kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R160": {
+  "parttype": "0402WGF5103TCE",
+  "value": "5.1kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R161": {
+  "parttype": "0402WGF5103TCE",
+  "value": "5.1kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "CARD1": {
+  "parttype": "XKTF-001B",
+  "value": "",
+  "designator_value": "",
+  "footprint": "TF-SMD_XKTF-001B",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R109": {
+  "parttype": "0402WGF0000TCE",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R107": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C160": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R111": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q10": {
+  "parttype": "FDZ299P",
+  "value": "",
+  "designator_value": "",
+  "footprint": "FCBGA-9_L1.6-W1.6-R3-C3-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q12": {
+  "parttype": "FDZ299P",
+  "value": "",
+  "designator_value": "",
+  "footprint": "FCBGA-9_L1.6-W1.6-R3-C3-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q9": {
+  "parttype": "FDZ299P",
+  "value": "",
+  "designator_value": "",
+  "footprint": "FCBGA-9_L1.6-W1.6-R3-C3-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q11": {
+  "parttype": "FDZ299P",
+  "value": "",
+  "designator_value": "",
+  "footprint": "FCBGA-9_L1.6-W1.6-R3-C3-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R112": {
+  "parttype": "FRC0402F1000TS",
+  "value": "100Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C162": {
+  "parttype": "FCC0402B102K500AT",
+  "value": "1nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R114": {
+  "parttype": "FRC0402F1000TS",
+  "value": "100Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R118": {
+  "parttype": "FRC0402F1000TS",
+  "value": "1K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R117": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R110": {
+  "parttype": "FRC0402F1000TS",
+  "value": "100Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R108": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "LED4": {
+  "parttype": "VLMB1500-GS08",
+  "value": "",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U38": {
+  "parttype": "IRM-V838M3-C/TR1",
+  "value": "",
+  "designator_value": "",
+  "footprint": "OPTO-SMD_IRM-V838M3-C-TR1",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R116": {
+  "parttype": "FRC0402F1000TS",
+  "value": "100Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R115": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C163": {
+  "parttype": "FCC0402B102K500AT",
+  "value": "1nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C161": {
+  "parttype": "FCC0402B102K500AT",
+  "value": "1nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q8": {
+  "parttype": "PMBS3904,215-JSM",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-3_L3.0-W1.7-P0.95-LS2.9-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "SW2": {
+  "parttype": "TSA020B3440A02",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SW-SMD_BZCN_YTSA020XXXX",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "SW4": {
+  "parttype": "TSA020B3440A02",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SW-SMD_BZCN_YTSA020XXXX",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "SW5": {
+  "parttype": "TSA020B3440A02",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SW-SMD_BZCN_YTSA020XXXX",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "SW3": {
+  "parttype": "TSA020B3440A02",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SW-SMD_BZCN_YTSA020XXXX",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U35": {
+  "parttype": "ESD73034D-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN2510-10_L2.5-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U36": {
+  "parttype": "ESD73034D-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN2510-10_L2.5-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "no"
+ },
+ "U37": {
+  "parttype": "RCLAMP0522P-ES",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-6_L1.6-W1.0-P0.50-BL",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R113": {
+  "parttype": "FRC0402F1000TS",
+  "value": "100Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "D7": {
+  "parttype": "HPESDNC2FD5VBS",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN1610-2_L1.6-W1.0-BI",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "D8": {
+  "parttype": "HPESDNC2FD5VBS",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN1610-2_L1.6-W1.0-BI",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "D6": {
+  "parttype": "HPESDNC2FD5VBS",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN1610-2_L1.6-W1.0-BI",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R119": {
+  "parttype": "FRC0402F3302TS",
+  "value": "33kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R120": {
+  "parttype": "0402WGF4702TCE",
+  "value": "47kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R125": {
+  "parttype": "0402WGF4702TCE",
+  "value": "47kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R122": {
+  "parttype": "FRC0402F3302TS",
+  "value": "33kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R134": {
+  "parttype": "0402WGF4702TCE",
+  "value": "47kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R133": {
+  "parttype": "FRC0402F3302TS",
+  "value": "33kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R132": {
+  "parttype": "0402WGF4702TCE",
+  "value": "47kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R131": {
+  "parttype": "FRC0402F3302TS",
+  "value": "33kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R135": {
+  "parttype": "FRC0402F5100TS",
+  "value": "510Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R136": {
+  "parttype": "RC0402FR-07680RL",
+  "value": "680Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R130": {
+  "parttype": "Res_0402",
+  "value": "1.8K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "Q13": {
+  "parttype": "MS3134",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-723-3_L1.2-W0.8-LS1.20-BR",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R121": {
+  "parttype": "Res_0402",
+  "value": "1.8K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "Q14": {
+  "parttype": "MS3134",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-723-3_L1.2-W0.8-LS1.20-BR",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R127": {
+  "parttype": "Res_0402",
+  "value": "1.8K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R129": {
+  "parttype": "Res_0402",
+  "value": "1.8K",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "FPC2": {
+  "parttype": "FPC30-T1T1-2010-A",
+  "value": "",
+  "designator_value": "",
+  "footprint": "FPC-SMD_30P-P0.50_FPC30-T1T1-2010-A",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "FPC3": {
+  "parttype": "FPC30-T1T1-2010-A",
+  "value": "",
+  "designator_value": "",
+  "footprint": "FPC-SMD_30P-P0.50_FPC30-T1T1-2010-A",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C164": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C165": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R124": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R128": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R126": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R123": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "X3": {
+  "parttype": "XL2EL89CSI-111YLC-37.4M",
+  "value": "37.4MHz",
+  "designator_value": "",
+  "footprint": "XTAL_3225_S_NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C171": {
+  "parttype": "0402CG220J500NT",
+  "value": "22pF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C169": {
+  "parttype": "100nF",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C168": {
+  "parttype": "4.7uF",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "FB1": {
+  "parttype": "120ohm",
+  "value": "120ohm",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C172": {
+  "parttype": "0402CG220J500NT",
+  "value": "22pF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U40": {
+  "parttype": "AP6256",
+  "value": "",
+  "designator_value": "",
+  "footprint": "AP6256",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C170": {
+  "parttype": "DNP",
+  "value": "DNP",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C167": {
+  "parttype": "10pF",
+  "value": "10pF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C166": {
+  "parttype": "DNP",
+  "value": "DNP",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "RF1": {
+  "parttype": "BWIPX-1-001E",
+  "value": "6GHz",
+  "designator_value": "",
+  "footprint": "IPEX-SMD_BWIPX-1-001E",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C176": {
+  "parttype": "4.7uF",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "L11": {
+  "parttype": "FTC201610S4R7MBCA",
+  "value": "4.7uH",
+  "designator_value": "",
+  "footprint": "IND-SMD_L2.0-W1.6-B",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C174": {
+  "parttype": "100nF",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C173": {
+  "parttype": "4.7uF",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R138": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R139": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R140": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R141": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R142": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R143": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "22Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R137": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "100Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R144": {
+  "parttype": "FRC0402F1002TS",
+  "value": "10kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C179": {
+  "parttype": "CGA0402X5R105K500GT",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R148": {
+  "parttype": "FRC0402F22R0TS",
+  "value": "100Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R147": {
+  "parttype": "0402WGF4702TCE",
+  "value": "47kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R145": {
+  "parttype": "FRC0402F3302TS",
+  "value": "33kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R146": {
+  "parttype": "FRC0603F0000TS",
+  "value": "0Ω",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C175": {
+  "parttype": "4.7uF",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C178": {
+  "parttype": "4.7uF",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C177": {
+  "parttype": "4.7uF",
+  "value": "4.7uF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U39": {
+  "parttype": "1N5819WT_C5451630",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOD-523_L1.2-W0.8-LS1.6-RD",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R150": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R149": {
+  "parttype": "WR04X472JTL",
+  "value": "4.7kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "D10": {
+  "parttype": "HPESDNC2FD5VBS",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN1610-2_L1.6-W1.0-BI",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "D9": {
+  "parttype": "HPESDNC2FD5VBS",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN1610-2_L1.6-W1.0-BI",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "CN6": {
+  "parttype": "SM06B-GHS-TB(LF)(SN)",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-TH_SM06B-GHS-TB-LF-SN",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C182": {
+  "parttype": "CGA0603X7R104K500JT",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "CN7": {
+  "parttype": "HC-1.25-4PWT",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-SMD_4P-P1.25-HC-1.25-4PWT",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C187": {
+  "parttype": "100nF",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R165": {
+  "parttype": "FRC0402F1001TS",
+  "value": "1kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R164": {
+  "parttype": "FRC0402F10R0TS",
+  "value": "10Ω",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "FPC5": {
+  "parttype": "5001-FPC0520-08R1-00-B",
+  "value": "",
+  "designator_value": "",
+  "footprint": "FPC-SMD_8P-P0.50_5001-FPC0520-08R1-00-B",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "FPC6": {
+  "parttype": "5001-FPC0520-08R1-00-B",
+  "value": "",
+  "designator_value": "",
+  "footprint": "FPC-SMD_8P-P0.50_5001-FPC0520-08R1-00-B",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U42": {
+  "parttype": "SHT40-CD1B-R3",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-4_L1.5-W1.5-P0.80-TL-EP",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C188": {
+  "parttype": "100nF",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "U43": {
+  "parttype": "HT8101DRDZ",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-8_L2.0-W2.0-P0.50-BL-EP1.2-1",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R166": {
+  "parttype": "FRC0402F3002TS",
+  "value": "30kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R167": {
+  "parttype": "FRC0402F3002TS",
+  "value": "30kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C191": {
+  "parttype": "CGA0402X7R563K160GT",
+  "value": "56nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C192": {
+  "parttype": "CGA0402X7R563K160GT",
+  "value": "56nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C193": {
+  "parttype": "HGC0402R5105K500NTEJ",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C194": {
+  "parttype": "HGC0402R5105K500NTEJ",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C195": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C199": {
+  "parttype": "HGC0402R5105K500NTEJ",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C200": {
+  "parttype": "CL05B104KB54PNC",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R169": {
+  "parttype": "FRC0402F3002TS",
+  "value": "30kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C198": {
+  "parttype": "HGC0402R5105K500NTEJ",
+  "value": "1uF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R168": {
+  "parttype": "FRC0402F3002TS",
+  "value": "30kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C197": {
+  "parttype": "CGA0402X7R563K160GT",
+  "value": "56nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "C196": {
+  "parttype": "CGA0402X7R563K160GT",
+  "value": "56nF",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "U44": {
+  "parttype": "HT8101DRDZ",
+  "value": "",
+  "designator_value": "",
+  "footprint": "DFN-8_L2.0-W2.0-P0.50-BL-EP1.2-1",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "CN8": {
+  "parttype": "LAIL-PHC1.25-4P-01-PB-WT",
+  "value": "",
+  "designator_value": "",
+  "footprint": "CONN-SMD_LAIL-PHC1.25-4P-01-PB-WT",
+  "add_bom": "no",
+  "to_pcb": "no"
+ },
+ "R171": {
+  "parttype": "0402WGF1001TCE",
+  "value": "1kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "R172": {
+  "parttype": "0402WGF1001TCE",
+  "value": "1kΩ",
+  "designator_value": "",
+  "footprint": "C0402-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "C206": {
+  "parttype": "100nF",
+  "value": "100nF",
+  "designator_value": "",
+  "footprint": "C0603-NSK",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ },
+ "Q15": {
+  "parttype": "PMBS3904,215-JSM",
+  "value": "",
+  "designator_value": "",
+  "footprint": "SOT-23-3_L3.0-W1.7-P0.95-LS2.9-BR",
+  "add_bom": "yes",
+  "to_pcb": "yes"
+ }
+}

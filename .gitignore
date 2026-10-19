@@ -1,0 +1,14 @@
+# Armbian build缓存与产物
+cache/
+output/
+build/
+*.deb
+*.dtb
+
+# 网表原始导出（较大，按需重新导出）
+netlist-dump/*.net
+netlist-dump/nl_raw.json
+
+# Python
+__pycache__/
+*.pyc

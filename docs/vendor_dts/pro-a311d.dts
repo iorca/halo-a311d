@@ -1,0 +1,486 @@
+#include "g12b_a311d_w400_drm_buildroot.dts"
+
+//#include "rp-lcd-mipi-5-720-1280-v2-boxTP.dtsi"
+// #include "rp-lcd-mipi-5.5-1080-1920.dtsi"
+// #include "rp-lcd-mipi-5.5-720-1280.dtsi"
+// #include "rp-lcd-mipi-5-720-1280.dtsi"
+ #include "rp-lcd-mipi-5-720-1280-v2.dtsi"
+// #include "rp-lcd-mipi-7-1024-600.dtsi"
+// #include "rp-lcd-mipi-7-1200-1920.dtsi"
+// #include "rp-lcd-mipi-8-800-1280.dtsi"
+// #include "rp-lcd-mipi-8-800-1280-v3.dtsi"
+//#include "rp-lcd-mipi-8-1200-1920-box.dtsi"
+// #include "rp-lcd-mipi-10-800-1280.dtsi"
+// #include "rp-lcd-mipi-10-800-1280-v3.dtsi"
+// #include "rp-lcd-mipi-10-1920-1200.dtsi"
+//#include "rp-hdmi-1080p.dtsi"
+
+/ {
+    model = "Amlogic";
+    amlogic-dt-id = "g12b_w400_b";
+    compatible = "pro-a311d";
+    rp_power{
+        status = "okay";
+        compatible = "rp_power";
+
+        // GPIO_FUNCTION_OUTPUT 0
+        // GPIO_FUNCTION_INPUT 1
+        // GPIO_FUNCTION_IRQ 2
+        // GPIO_FUNCTION_FLASH 3
+        // GPIO_FUNCTION_OUTPUT_CTRL 4        
+        usb_pwr { //usb power
+                gpio_num = <&gpio GPIOA_1 GPIO_ACTIVE_HIGH>;
+                gpio_function = <4>;
+        };
+        hub_rst { //hub rst
+                gpio_num = <&gpio GPIOA_3 GPIO_ACTIVE_HIGH>;
+                gpio_function = <4>;
+        };
+        spk_on {	//
+                gpio_num = <&gpio GPIOA_4 GPIO_ACTIVE_HIGH>;
+                gpio_function = <4>;
+        };
+        fan_en {	//
+                gpio_num = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH>;
+                gpio_function = <0>;
+        };
+        otg_pwr { //otg host power
+                gpio_num = <&gpio GPIOZ_9 GPIO_ACTIVE_HIGH>;
+                gpio_function = <4>;
+        };      
+        otg_host {	//
+                gpio_num = <&gpio GPIOZ_8 GPIO_ACTIVE_HIGH>; //1:host,0:device
+                gpio_function = <4>;
+        };
+        run_led { // led pin control
+                gpio_num = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+                gpio_function = <3>;
+        };
+	};
+
+    rp_gpio{
+        status = "okay";
+        compatible = "rp_gpio";
+        //gpio_function:
+        //#define GPIO_FUNCTION_OUTPUT 0
+        //#define GPIO_FUNCTION_INPUT 1
+        //#define GPIO_FUNCTION_IRQ 2
+        //#define GPIO_FUNCTION_FLASH 3
+        gpioa11 {
+            gpio_num = <&gpio GPIOA_11 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioa10 {
+            gpio_num = <&gpio GPIOA_10 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioa13 {
+            gpio_num = <&gpio GPIOA_13 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioa12 {
+            gpio_num = <&gpio GPIOA_12 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioao11 {
+            gpio_num = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        /*
+        gpioz1 {
+            gpio_num = <&gpio GPIOZ_1 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioz0 {
+            gpio_num = <&gpio GPIOZ_0 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioz13 {
+            gpio_num = <&gpio GPIOZ_13 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        */
+        gpioz12 {
+            gpio_num = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioz10 {
+            gpio_num = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioz7 {
+            gpio_num = <&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioz5 {
+            gpio_num = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioz4 {
+            gpio_num = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioa0 {
+            gpio_num = <&gpio GPIOA_0 GPIO_ACTIVE_HIGH>;
+            gpio_function = <0>;            //0:output 1:input
+        };
+        gpioao5 {
+            gpio_num = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
+            gpio_function = <1>;            //0:output 1:input
+        };
+    };
+
+    stm706 {
+        status = "disabled";
+        compatible = "stm706";
+        // reset_gpio = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
+        // wdt_gpio = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
+    };
+    
+    gpioleds{
+        status = "disabled";
+    };
+    
+    gpio_keypad{
+        status = "disabled";
+    };
+    
+    adc_keypad{
+        status = "disabled";
+    };
+    
+    bt-dev{
+		compatible = "amlogic, bt-dev";
+		dev_name = "bt-dev";
+		status = "okay";
+		gpio_reset = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
+		gpio_hostwake = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+        gpio_btwakeup = <&gpio GPIOA_5 GPIO_ACTIVE_HIGH>;
+	};
+    
+    /* Audio Related start */
+	pdm_codec:dummy{
+		status = "okay";
+	};
+	dummy_codec:dummy{
+		status = "okay";
+	};
+	amlogic_codec:t9015{
+		status = "okay";
+	};
+	audio_effect:eqdrc{
+        status = "okay";
+	};
+    
+    auge_sound {
+        /*avout mute gpio*/
+        /delete-property/ avout_mute-gpios;
+		compatible = "amlogic, g12a-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
+        
+		/*for audio effect ,eqdrc */
+		aml-audio-card,effect = <&audio_effect>;
+        
+        //delete for reconfigure
+        /delete-node/ aml-audio-card,dai-link@0;
+        /delete-node/ aml-audio-card,dai-link@1;
+        /delete-node/ aml-audio-card,dai-link@2;
+        /delete-node/ aml-audio-card,dai-link@3;
+        /delete-node/ aml-audio-card,dai-link@4;
+        
+        aml-audio-card,dai-link@0 {
+            format = "i2s";
+			mclk-fs = <256>;
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			bitclock-master = <&aml_tdmb>;
+			frame-master = <&aml_tdmb>;
+			/* suffix-name, sync with android audio hal
+			 * what's the dai link used for
+			 */
+			suffix-name = "alsaPORT-i2s";
+			cpu {
+				sound-dai = <&aml_tdmb>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+            tdmbcodec: codec {
+				sound-dai = <&dummy_codec &dummy_codec
+				&amlogic_codec>;
+			};
+		};
+        
+		aml-audio-card,dai-link@1 {
+            mclk-fs = <64>;
+			/* suffix-name, sync with android audio hal
+			 * what's the dai link used for
+			 */
+			suffix-name = "alsaPORT-pdm";
+			cpu {
+				sound-dai = <&aml_pdm>;
+			};
+			codec {
+				sound-dai = <&pdm_codec>;
+			};
+		};      
+        
+		aml-audio-card,dai-link@6 {
+			mclk-fs = <256>;
+			continuous-clock;
+			suffix-name = "alsaPORT-loopback";
+			cpu {
+				sound-dai = <&loopback>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+	audiolocker: locker {
+		status = "okay";
+	};
+	/* Audio Related end */
+};
+
+
+/* audiobus configure*/
+&aml_tdma{
+    status = "disabled";
+};
+
+&aml_tdmb{
+    status = "okay";
+};
+
+&aml_tdmc{
+    status = "disabled";
+};
+
+&tdmlb{
+    status = "disabled";
+};
+
+&aml_spdif{
+    status = "disabled";
+};
+&aml_spdif_b{
+    status = "disabled";
+};
+&aml_pdm{
+    compatible = "amlogic, g12a-snd-pdm";
+    #sound-dai-cells = <0>;
+    pinctrl-names = "pdm_pins";
+    pinctrl-0 = <&pdmin_z>;
+    filter_mode = <1>; /* mode 0~4, defalut:1 */
+    status = "okay";
+};
+
+&loopback{
+    status = "okay";
+};
+
+&audioresample{
+    status = "disabled";
+};
+&aml_pwrdet{
+    status = "disabled";
+};
+/* end of audiobus */ 
+
+
+/* partition configure */
+&partitions{
+    parts = <12>;
+    part-0 = <&logo>;
+    part-1 = <&recovery>;
+    part-2 = <&misc>;
+    part-3 = <&dto>;
+    part-4 = <&cri_data>;
+    part-5 = <&param>;
+    part-6 = <&boot>;
+    part-7 = <&rsv>;
+    part-8 = <&tee>;
+    part-9 = <&odm>;
+    part-10 = <&cache>;
+    part-11 = <&system>;
+
+    logo:logo{
+        pname = "logo";
+        size = <0x0 0x800000>;
+        mask = <1>;
+    };
+    recovery:recovery{
+        pname = "recovery";
+        size = <0x0 0x1800000>;
+        mask = <1>;
+    };
+    misc:misc{
+        pname = "misc";
+        size = <0x0 0x800000>;
+        mask = <1>;
+    };
+    dto:dto{
+        pname = "dto";
+        size = <0x0 0x800000>;
+        mask = <1>;
+    };
+    cri_data:cri_data{
+        pname = "cri_data";
+        size = <0x0 0x800000>;
+        mask = <2>;
+    };
+    rsv:rsv{
+        pname = "rsv";
+        size = <0x0 0x1000000>;
+        mask = <1>;
+    };
+    param:param{
+        pname = "param";
+        size = <0x0 0x1000000>;
+        mask = <2>;
+    };
+    boot:boot{
+        pname = "boot";
+        size = <0x0 0x1000000>;
+        mask = <1>;
+    };
+    tee:tee{
+        pname = "tee";
+        size = <0x0 0x2000000>;
+        mask = <1>;
+    };
+    odm:odm{
+        pname = "odm";
+        size = <0x0 0x10000000>;
+        mask = <1>;
+    };
+    cache:cache{
+        pname = "cache";
+        size = <0x0 0x46000000>;
+        mask = <2>;
+    };
+    system:system{
+        pname = "system";
+        size = <0xffffffff 0xffffffff>;
+        mask = <1>;
+    };
+};
+
+&i2c_AO {
+    status = "okay";
+    pinctrl-names="default";
+    pinctrl-0=<&ao_i2c_master_pins1>;
+    clock-frequency = <100000>; // default 100k 
+
+    hym8563: hym8563@51 {
+        compatible = "haoyu,hym8563";
+        reg = <0x51>;
+        #clock-cells = <0>;
+    };
+};
+
+
+//ttyS1 bt
+&uart_A {
+    status = "okay";
+};
+
+//ttyS3 485
+&uart_C {
+    status = "okay";
+};
+
+//ttyS4 uart1 
+&uart_AO_B {
+    status = "okay";
+};
+
+&ethmac {
+       status = "okay";
+/*     //conflict with isp i2c
+       pinctrl-names = "internal_eth_pins";
+       pinctrl-0 = <&internal_eth_pins>;
+*/
+       mc_val = <0x4be04>;
+
+       internal_phy=<1>;
+};
+
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c2_master_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+    /delete-node/ sensor-i2c@6c;
+	sensor-i2c@34 {
+		compatible = "arm, i2c-sensor";
+		reg = <0x34>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x34>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
+};
+
+&sensor{
+    compatible = "soc, sensor";
+    status = "okay";
+    sensor-name = "imx307"; /*imx290;os08a10;imx227*/
+    reset = <&gpio GPIOA_12 GPIO_ACTIVE_HIGH>;
+    
+    /* We don't need the following property */
+    /delete-property/ pinctrl-names;
+    /delete-property/ pinctrl-0;
+    /delete-property/ clocks;
+    /delete-property/ clock-names;
+    /delete-property/ ir_cut_gpio;
+    
+    //pinctrl-names="default"; 
+    //pinctrl-0=<&clk12_24_z_pins>;
+    //clocks = <&clkc CLKID_24M>;
+    //clock-names = "g12a_24m";
+    //ir_cut_gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH
+    //&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
+};
+
+&iq{
+    compatible = "soc, iq";
+    status = "okay";
+    sensor-name = "imx307"; /*imx290;os08a10;imx227*/
+};
+
+&vdin0{
+    status = "disabled";
+};
+
+&vdin1{
+    status = "disabled";
+};
+
+&ad82584f_62{
+    status = "disabled";
+};
+
+&usb3_phy_v2{
+    /* we not need */
+    /delete-property/ gpio-vbus-power;
+    /delete-property/ gpios;
+};
+
+&pinctrl_periphs {
+    pdmin_z: pdmin_z {
+        mux { /* gpioz_2, gpioz_6 */
+            groups =
+            "pdm_din0_z",
+            "pdm_dclk_z";
+            function = "pdm";
+        };
+    };
+};

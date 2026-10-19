@@ -1,0 +1,174 @@
+# =============================================================================
+# halo-a311d —— Armbian 内核 / DTB 构建
+#
+# 架构说明（重要）:
+#   armbian/build 官方仓库 .gitignore 第 19 行排除了 /userpatches
+#   （armbian 约定该目录是本地覆盖，不进版本库）
+#   → 因此本仓库独立保存板级文件，CI 检出 armbian 后用
+#     scripts/deploy-to-build.sh 注入 userpatches/
+#
+# 触发:
+#   push 到 main / 改dts 或 config 时
+#   手动 workflow_dispatch
+#   往 main 推 tag（自动出带版本号的 release 资产）
+# =============================================================================
+name: build-halo-a311d
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'dt/**'
+      - 'config/**'
+      - 'fip/**'
+      - 'boot/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - 'dt/**'
+      - 'config/**'
+      - 'fip/**'
+      - 'boot/**'
+      - 'scripts/**'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '构建目标'
+        required: true
+        default: kernel
+        type: choice
+        options:
+          - kernel
+          - image
+
+env:
+  BOARD: halo-a311d
+  BRANCH: current
+  FAMILY: meson-g12b
+  KERNEL_SUBDIR: meson64-current
+
+jobs:
+  # ===========================================================================
+  # 只编 dtb —— 快，几分钟，用于验证 DTS 语法
+  # ===========================================================================
+  dtb:
+    name: DTB syntax check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -yqq device-tree-compiler
+
+      - name: Fetch A311D kernel dts tree
+        # 只取 dts 与 dt-bindings，够编 dtb 用，快
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/torvalds/linux.git
+          cd linux
+          sparse-checkout set \
+            arch/arm64/boot/dts/amlogic \
+            scripts/dtc \
+            include/dt-bindings
+          # 确认 VIM3 基线能编（对照）
+          dtc --version
+
+      - name: Compile board DTBs
+        run: |
+          set -euo pipefail
+          cd linux
+          # 把板级 dts 放进 amlogic 目录（覆盖同名冲突）
+          cp $GITHUB_WORKSPACE/dt/meson-halo-a311d.dts      arch/arm64/boot/dts/amlogic/
+          cp $GITHUB_WORKSPACE/dt/meson-halo-a311d-pcie.dts arch/arm64/boot/dts/amlogic/
+
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::build $f.dtb"
+            # 注意：必须用 include-prefixes，否则 dt-bindings 头找不到
+            cpp -nostdinc \
+                -I arch/arm64/boot/dts \
+                -I arch/arm64/boot/dts/amlogic \
+                -I scripts/dtc/include-prefixes \
+                -undef -D__DTS__ -x assembler-with-cpp \
+                arch/arm64/boot/dts/amlogic/$f.dts > /tmp/$f.pp.dts
+            # 过滤上游既有警告，只看本板问题
+            dtc -I dts -O dtb -o $f.dtb /tmp/$f.pp.dts 2>&1 \
+              | grep -vE 'unit_address_vs_reg|simple_bus_reg|avoid_unnecessary_addr_size|also defined at' \
+              | tee /tmp/$f.err || true
+            if [ -s /tmp/$f.err ]; then
+              echo "::error::$f.dtb 编译报错"; cat /tmp/$f.err; fail=1
+            else
+              echo "✓ $f.dtb ($(stat -c%s $f.dtb) bytes)"
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: Upload dtb artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: halo-a311d-dtb
+          path: |
+            linux/meson-halo-a311d.dtb
+            linux/meson-halo-a311d-pcie.dtb
+
+  # ===========================================================================
+  # 完整内核编译 —— 需要 ARM64 原生 runner（QEMU 模拟过慢）
+  # ===========================================================================
+  kernel:
+    name: Kernel build (ARM64)
+    # 需要自建/自托管 ARM64 runner；GitHub 官方 runner 只有 x86
+    # 用 QEMU 的话把 runs-on 改 ubuntu-24.04 并加 下面的 qemu 步骤
+    runs-on: [self-hosted, ARM64]
+    needs: dtb
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache armbian-build
+        uses: actions/cache@v4
+        with:
+          path: ~/armbian-build/cache/sources
+          key: armbian-meson64-${{ hashFiles('dt/**') }}
+          restore-keys: armbian-meson64-
+
+      - name: Clone armbian/build
+        run: |
+          git clone --depth 1 https://github.com/armbian/build.git ~/armbian-build
+          # 官方 .gitignore 排除了 userpatches，需去掉该行才能提交我们的注入
+          sed -i 's|^/userpatches$|# /userpatches (CI: 不忽略)|' \
+            ~/armbian-build/.gitignore
+          mkdir -p ~/armbian-build/userpatches
+
+      - name: Inject board files
+        run: |
+          chmod +x scripts/deploy-to-build.sh
+          ./scripts/deploy-to-build.sh ~/armbian-build
+          # 确认注入成功
+          test -f ~/armbian-build/userpatches/config/boards/${{ env.BOARD }}.conf
+          test -f ~/armbian-build/userpatches/kernel/${{ env.KERNEL_SUBDIR }}/dt/meson-halo-a311d.dts
+          test -f ~/armbian-build/fip/halo-a311d/blx_fix.sh
+
+      - name: Build kernel
+        working-directory: ~/armbian-build
+        run: |
+          export USERPATCHES_PATH=~/armbian-build/userpatches
+          ./compile.sh kernel BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}
+
+      - name: Package dtb
+        run: |
+          cd ~/armbian-build
+          find . -name 'meson-halo-a311d*.dtb' -exec cp {} out/ \; 2>/dev/null || true
+          ls -la out/*.dtb 2>/dev/null || echo "未找到 dtb"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-a311d-kernel
+          path: |
+            ~/armbian-build/out/**/*.deb
+            ~/armbian-build/out/**/*.dtb
+          retention-days: 14

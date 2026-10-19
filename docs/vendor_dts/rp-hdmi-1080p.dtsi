@@ -1,0 +1,12 @@
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "okay";
+};
+
+&drm_amcvbsout {
+	status = "disable";
+};
+
+&drm_lcd {
+	status = "disable";
+};
