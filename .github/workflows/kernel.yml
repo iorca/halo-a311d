@@ -66,10 +66,10 @@ jobs:
           echo "target: ${{ github.event.inputs.target || 'kernel' }}"
           # ⚠ job 级 env: 不会成为 shell 环境变量，必须写进 GITHUB_ENV
           #   否则后续步骤里 $BUILD_DIR 会报unbound variable
-          echo "BUILD_DIR=${{ env.BUILD_DIR }}" >> "$GITHUB_ENV"
-          echo "USERPATCHES_PATH=${{ env.BUILD_DIR }}/userpatches" >> "$GITHUB_ENV"
-          echo "BUILD_DIR=${{ env.BUILD_DIR }}"
-          echo "USERPATCHES_PATH=${{ env.BUILD_DIR }}/userpatches"
+          echo "BUILD_DIR=$GITHUB_WORKSPACE/armbian-build" >> "$GITHUB_ENV"
+          echo "USERPATCHES_PATH=$GITHUB_WORKSPACE/armbian-build/userpatches" >> "$GITHUB_ENV"
+          echo "BUILD_DIR=$GITHUB_WORKSPACE/armbian-build"
+          echo "USERPATCHES_PATH=$GITHUB_WORKSPACE/armbian-build/userpatches"
           nproc || echo "nproc unavailable"
           free -h || true
 
@@ -106,30 +106,30 @@ jobs:
       - name: Clone armbian/build
         run: |
           set -eux
-          git clone --depth 1 https://github.com/armbian/build.git "${{ env.BUILD_DIR }}"
+          git clone --depth 1 https://github.com/armbian/build.git "$GITHUB_WORKSPACE/armbian-build"
           # 官方排除 /userpatches，要提交注入结果必须去掉
-          sed -i 's|^/userpatches$|# /userpatches (CI: injected)|' "${{ env.BUILD_DIR }}/.gitignore"
-          mkdir -p "${{ env.BUILD_DIR }}/userpatches"
-          grep -n "userpatches" "${{ env.BUILD_DIR }}/.gitignore" | head -3
+          sed -i 's|^/userpatches$|# /userpatches (CI: injected)|' "$GITHUB_WORKSPACE/armbian-build/.gitignore"
+          mkdir -p "$GITHUB_WORKSPACE/armbian-build/userpatches"
+          grep -n "userpatches" "$GITHUB_WORKSPACE/armbian-build/.gitignore" | head -3
 
       - name: Inject board files
         run: |
           set -eux
           chmod +x scripts/deploy-to-build.sh
-          ./scripts/deploy-to-build.sh ${{ env.BUILD_DIR }}
+          ./scripts/deploy-to-build.sh $GITHUB_WORKSPACE/armbian-build
           echo "--- 注入结果校验 ---"
-          test -f ${{ env.BUILD_DIR }}/userpatches/config/boards/${{ env.BOARD }}.conf
-          test -f ${{ env.BUILD_DIR }}/userpatches/config/sources/families/meson-g12b.conf
-          test -f ${{ env.BUILD_DIR }}/userpatches/kernel/${{ env.KERNEL_SUBDIR }}/dt/meson-halo-a311d.dts
-          test -f ${{ env.BUILD_DIR }}/fip/halo-a311d/blx_fix.sh
-          ls -la ${{ env.BUILD_DIR }}/fip/halo-a311d/ | head -5
+          test -f $GITHUB_WORKSPACE/armbian-build/userpatches/config/boards/${{ env.BOARD }}.conf
+          test -f $GITHUB_WORKSPACE/armbian-build/userpatches/config/sources/families/meson-g12b.conf
+          test -f $GITHUB_WORKSPACE/armbian-build/userpatches/kernel/${{ env.KERNEL_SUBDIR }}/dt/meson-halo-a311d.dts
+          test -f $GITHUB_WORKSPACE/armbian-build/fip/halo-a311d/blx_fix.sh
+          ls -la $GITHUB_WORKSPACE/armbian-build/fip/halo-a311d/ | head -5
           echo "✓ 板级文件已就位"
 
       - name: Build kernel
         run: |
           set -eux
-          cd "${{ env.BUILD_DIR }}"
-          export USERPATCHES_PATH="${{ env.BUILD_DIR }}/userpatches"
+          cd "$GITHUB_WORKSPACE/armbian-build"
+          export USERPATCHES_PATH="$GITHUB_WORKSPACE/armbian-build/userpatches"
           TGT="${{ github.event.inputs.target || 'kernel' }}"
           echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
           ./compile.sh "$TGT" \
@@ -139,7 +139,7 @@ jobs:
       - name: Collect artifacts
         run: |
           set -eux
-          cd "${{ env.BUILD_DIR }}"
+          cd "$GITHUB_WORKSPACE/armbian-build"
           mkdir -p out-halo
 
           # dtb（内核构建的权威产物）
