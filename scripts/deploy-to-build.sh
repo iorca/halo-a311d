@@ -37,31 +37,19 @@ install -m 0644 "$REPO_ROOT/config/boards/halo-a311d.conf" \
 echo "✓ config/boards/halo-a311d.conf"
 
 # -----------------------------------------------------------------------------
-# 2. family 覆盖（u-boot FIP 组装）
-# -----------------------------------------------------------------------------
-mkdir -p "$UP/config/sources/families"
-install -m 0644 "$REPO_ROOT/config/sources/families/meson-g12b.conf" \
-              "$UP/config/sources/families/meson-g12b.conf"
-echo "✓ config/sources/families/meson-g12b.conf"
-
-# -----------------------------------------------------------------------------
-# 3. FIP 树 —— 必须放 cache/ 之外！
-#    fetch_sources_tools__libreelec_amlogic_fip() 会把 LibreELEC 的
-#    amlogic-boot-fip clone 到 $SRC/cache/sources/ 并 git clean 掉未跟踪内容。
-#    LibreELEC 没有 halo-a311d 目录 → 拷进 cache 每次构建都被删。
-#    症状: uboot_g12_postprocess 报 blx_fix.sh: No such file (127)
-# -----------------------------------------------------------------------------
-mkdir -p "$BUILD_DIR/fip/halo-a311d"
-cp -a "$REPO_ROOT/fip/halo-a311d/." "$BUILD_DIR/fip/halo-a311d/"
-# ⚠⚠ 必须显式 chmod +x —— Windows 上 git 记的权限位可能是 100644
-#   （core.filemode=false 时 git 忽略本地执行位）。
-#   blx_fix.sh 没有 +x 会被 armbian 的 FIP 组装直接拒绝：
-#   "blx_fix.sh is not executable" + exit 2
-for exe in blx_fix.sh aml_encrypt_g12b acs_tool.py; do
-    f="$BUILD_DIR/fip/halo-a311d/$exe"
-    [ -f "$f" ] && chmod +x "$f" && echo "  chmod +x $exe"
-done
-echo "✓ fip/halo-a311d ($(ls -1 "$BUILD_DIR/fip/halo-a311d" | wc -l) 个文件)"
+# 2. FIP —— 不再自己维护！
+#
+#armbian 的 fetch_sources_tools__libreelec_amlogic_fip() 会自动把
+#   LibreELEC/amlogic-boot-fip clone 到 $SRC/cache/sources/amlogic-boot-fip，
+#   我们在 board conf 里用 hook 指定 khadas-vim3 目录即可：
+#     uboot_g12_postprocess "${SRC}"/cache/sources/amlogic-boot-fip/khadas-vim3 g12b
+#
+#为什么不用自己的 fip/ 目录（2026-10-19 踩过的坑）:
+#   1. 仓库里的 fip 是从厂商 SDK 拷的，aml_encrypt_g12b / bl2.bin / bl30.bin /
+#      bl31.img 都与 LibreELEC 不同，而 ddr*.fw 却相同 —— 混用导致
+#      "FW file ddr4_1d.fw magic error!" + bootmk fail
+#   2. 自己维护 = 要管 git-lfs + 文件权限位（Windows 上 git 记100644）
+#   3. 用 LibreELEC 的，自动跟随上游更新
 
 # -----------------------------------------------------------------------------
 # 4. 内核 dts —— 目录名随内核大版本变，必须动态派生，不能写死
@@ -98,7 +86,7 @@ install -m 0644 "$REPO_ROOT/dt/meson-halo-a311d-pcie.dts" "$DT_DIR/"
 echo "✓ $DT_DIR  (BRANCH=$BRANCH_NAME → KERNEL_MAJOR_MINOR=$KMM)"
 
 # -----------------------------------------------------------------------------
-# 5. U-Boot 模式选择脚本（冷切换）
+# 4. U-Boot 模式选择脚本（冷切换）
 # -----------------------------------------------------------------------------
 install -m 0644 "$REPO_ROOT/boot/althaea-mode.hush" \
               "$BUILD_DIR/fip/halo-a311d/althaea-mode.hush" 2>/dev/null || true
