@@ -1,0 +1,167 @@
+# =============================================================================
+# halo-a311d —— Armbian 内核编译
+#
+# runner: GitHub 官方原生 ARM64（ubuntu-24.04-arm），无需自托管/ QEMU
+#   2025 起 GitHub 提供 arm64 公开 runner，标签 ubuntu-24.04-arm
+#
+# 流程:
+#   1. checkout 本仓库
+#   2. clone armbian/build
+#      ⚠ 官方 .gitignore 第19 行排除 /userpatches（约定为本地覆盖），
+#         要把注入结果提交/使用必须先去掉该行
+#   3. scripts/deploy-to-build.sh 注入板级文件
+#   4. compile.sh kernel BOARD=halo-a311d BRANCH=current
+#
+# 缓存策略:
+#   内核源码树最大(~10GB)，只缓存 armbian 的 cache/sources
+#   armbian 支持增量编译，命中缓存后第二次快很多
+#
+# 手动触发可改target:
+#   target=kernel  只编内核（默认）
+#   target=image  编完整系统镜像（慢得多，30~60min）
+# =============================================================================
+name: kernel-build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dt/**'
+      - 'config/**'
+      - 'fip/**'
+      - 'boot/**'
+      - 'scripts/**'
+      - '.github/workflows/kernel.yml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '构建目标'
+        required: true
+        default: kernel
+        type: choice
+        options: [kernel, image]
+  schedule:
+    # 每周一早上 6 点增量重建（cron: '0 6 * * 1'）
+    - cron: '0 6 * * 1'
+
+env:
+  BOARD: halo-a311d
+  BRANCH: current
+  FAMILY: meson-g12b
+  KERNEL_SUBDIR: meson64-current
+
+jobs:
+  kernel:
+    name: Kernel (ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show environment
+        run: |
+          echo "arch  : $(uname -m)"
+          echo "kernel: $(uname -r)"
+          echo "target: ${{ github.event.inputs.target || 'kernel' }}"
+          nproc || echo "nproc unavailable"
+          free -h || true
+
+      - name: Install build dependencies
+        run: |
+          set -eux
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            git bc bison flex libssl-dev libelf-dev \
+            python2 python3 python3-setuptools rsync \
+            cpio kmod zip unzip xz-utils \
+            device-tree-compiler u-boot-tools \
+            gcc-aarch64-linux-gnu gcc-12-aarch64-linux-gnu \
+            libssl-dev lz4 libpython3-dev \
+            python3-pip python3-venv
+          # armbian 需要这些，设PATH 让它找到
+          echo "CROSS_COMPILE=aarch64-linux-gnu-" >> "$GITHUB_ENV"
+          command -v aarch64-linux-gnu-gcc
+          command -v dtc
+
+      - name: Cache armbian sources
+        uses: actions/cache@v4
+        with:
+          path: ~/armbian-build/cache/sources
+          key: arm-meson64-${{ env.BRANCH }}-${{ hashFiles('dt/**', 'config/**') }}
+          restore-keys: |
+            arm-meson64-${{ env.BRANCH }}-
+            arm-meson64-
+
+      - name: Clone armbian/build
+        run: |
+          set -eux
+          git clone --depth 1 https://github.com/armbian/build.git ~/armbian-build
+          # 官方排除 /userpatches，要提交注入结果必须去掉
+          sed -i 's|^/userpatches$|# /userpatches (CI: 注入后需提交)|' ~/armbian-build/.gitignore
+          mkdir -p ~/armbian-build/userpatches
+          grep -n "userpatches" ~/armbian-build/.gitignore | head -3
+
+      - name: Inject board files
+        run: |
+          set -eux
+          chmod +x scripts/deploy-to-build.sh
+          ./scripts/deploy-to-build.sh ~/armbian-build
+          echo "--- 注入结果校验 ---"
+          test -f ~/armbian-build/userpatches/config/boards/${{ env.BOARD }}.conf
+          test -f ~/armbian-build/userpatches/config/sources/families/meson-g12b.conf
+          test -f ~/armbian-build/userpatches/kernel/${{ env.KERNEL_SUBDIR }}/dt/meson-halo-a311d.dts
+          test -f ~/armbian-build/fip/halo-a311d/blx_fix.sh
+          ls -la ~/armbian-build/fip/halo-a311d/ | head -5
+          echo "✓ 板级文件已就位"
+
+      - name: Prepare u-boot (mainline, needed for dtb/boot)
+        run: |
+          set -eux
+          cd ~/armbian-build
+          # armbian 会自动 clone u-boot，这里预热一下缓存
+          mkdir -p cache/sources/u-boot-worktree
+          git clone --depth 1 -b v2025.01 \
+            https://github.com/u-boot/u-boot.git \
+            cache/sources/u-boot-worktree/u-boot/v2025.01 2>&1 | tail -3 || \
+            echo "u-boot 预clone 失败，交给 armbian 自己处理"
+
+      - name: Build kernel
+        working-directory: ~/armbian-build
+        run: |
+          set -eux
+          export USERPATCHES_PATH=~/armbian-build/userpatches
+          TGT="${{ github.event.inputs.target || 'kernel' }}"
+          echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
+          ./compile.sh "$TGT" \
+            BOARD="${{ env.BOARD }}" \
+            BRANCH="${{ env.BRANCH }}"
+
+      - name: Collect artifacts
+        run: |
+          set -eux
+          cd ~/armbian-build
+          mkdir -p out-halo
+
+          # dtb（内核构建的权威产物）
+          echo "--- 查找本板dtb ---"
+          find . -name 'meson-halo-a311d*.dtb' 2>/dev/null | tee /tmp/dtb-list.txt || true
+          if [ -s /tmp/dtb-list.txt ]; then
+            while read -r f; do cp "$f" out-halo/; done < /tmp/dtb-list.txt
+            ls -la out-halo/
+          else
+            echo "::warning::未找到 meson-halo-a311d*.dtb，检查 deploy 脚本与内核 patch"
+          fi
+
+          # 内核 deb
+          find output -name '*.deb' 2>/dev/null | head -20 || echo "无 deb 产出"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: halo-a311d-kernel-${{ github.event.inputs.target || 'kernel' }}
+          path: |
+            ~/armbian-build/out-halo/*.dtb
+            ~/armbian-build/output/**/*.deb
+            ~/armbian-build/output/**/*.deb.*
+          retention-days: 30
+          if-no-files-found: warn
