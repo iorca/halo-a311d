@@ -82,11 +82,19 @@ jobs:
           cp "$GITHUB_WORKSPACE/dt/meson-halo-a311d-pcie.dts" "$D/"
 
           fail=0
-          # 先确认 dts 依赖链完整，避免 cpp 报一堆看不懂的错误
-          for req in meson-g12b-a311d.dts meson-g12b.dtsi meson-g12.dtsi \
+          # 先确认 dts 依赖链完整（只有 SoC 级文件，板级 dts 已由上面 cp 放入）
+          for req in meson-g12b-a311d.dtsi meson-g12.dtsi \
                      meson-g12-common.dtsi meson-g12b-s922x.dtsi; do
             if [ ! -f "$D/$req" ]; then
-              echo "::error::缺少依赖 $D/$req"
+              echo "::error::缺少 SoC 依赖 $D/$req"
+              ls "$D" | head -30
+              exit 1
+            fi
+          done
+          # 板级 dts 必须确认已放入（cp 失败要立刻知道）
+          for f in meson-halo-a311d.dts meson-halo-a311d-pcie.dts; do
+            if [ ! -f "$D/$f" ]; then
+              echo "::error::板级 dts 未就位 $D/$f"
               exit 1
             fi
           done
