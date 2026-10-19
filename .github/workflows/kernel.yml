@@ -181,6 +181,11 @@ jobs:
           export PREFER_DOCKER=no
           export DOCKER=no
           export SKIP_ARMBIAN_IMAGE=yes
+          # ⚠⚠ 必须禁交互 —— 'build' 会弹 dialog 菜单（内核配置选择），
+          #   CI 里 stdin 不是 tty → "stdin is not a terminal. can't use dialog" + exit 43
+          #   KERNEL_CONFIGURE=no 是 armbian 官方 config 模板里的推荐值
+          export KERNEL_CONFIGURE=no
+          export BUILD_ONLY=""
           echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
           #⚠ RELEASE 是 rootfs/build 的必填参数，
           #   缺了报 "Param 'RELEASE' is not set but needs to be set for rootfs CLI"
