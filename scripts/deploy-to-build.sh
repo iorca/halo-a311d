@@ -53,6 +53,14 @@ echo "✓ config/sources/families/meson-g12b.conf"
 # -----------------------------------------------------------------------------
 mkdir -p "$BUILD_DIR/fip/halo-a311d"
 cp -a "$REPO_ROOT/fip/halo-a311d/." "$BUILD_DIR/fip/halo-a311d/"
+# ⚠⚠ 必须显式 chmod +x —— Windows 上 git 记的权限位可能是 100644
+#   （core.filemode=false 时 git 忽略本地执行位）。
+#   blx_fix.sh 没有 +x 会被 armbian 的 FIP 组装直接拒绝：
+#   "blx_fix.sh is not executable" + exit 2
+for exe in blx_fix.sh aml_encrypt_g12b acs_tool.py; do
+    f="$BUILD_DIR/fip/halo-a311d/$exe"
+    [ -f "$f" ] && chmod +x "$f" && echo "  chmod +x $exe"
+done
 echo "✓ fip/halo-a311d ($(ls -1 "$BUILD_DIR/fip/halo-a311d" | wc -l) 个文件)"
 
 # -----------------------------------------------------------------------------
