@@ -142,17 +142,35 @@ jobs:
           cd "$GITHUB_WORKSPACE/armbian-build"
           mkdir -p out-halo
 
-          # dtb（内核构建的权威产物）
-          echo "--- 查找本板dtb ---"
-          find . -name 'meson-halo-a311d*.dtb' 2>/dev/null | tee /tmp/dtb-list.txt || true
+          # ⚠ armbian 会把 userpatches 的 dts 用 **BOARD 名**重命名后再编 dtb，
+          #   产物叫 halo-a311d.dtb / halo-a311d-pcie.dtb，
+          #   而不是 meson-halo-a311d*.dtb —— 两种名字都要找。
+          echo "--- 查找本板 dtb ---"
+          find . -name '*halo-a311d*.dtb' 2>/dev/null | tee /tmp/dtb-list.txt || true
           if [ -s /tmp/dtb-list.txt ]; then
-            while read -r f; do cp "$f" out-halo/; done < /tmp/dtb-list.txt
+            while read -r f; do
+              cp "$f" out-halo/
+              echo "  收集: $f"
+            done < /tmp/dtb-list.txt
             ls -la out-halo/
           else
-            echo "::warning::未找到 meson-halo-a311d*.dtb，检查 deploy 脚本与内核 patch"
+            echo "::error::未找到任何 *halo-a311d*.dtb —— 板级 dts 没进内核"
+            echo "userpatches dt 目录:"
+            ls -la userpatches/kernel/*/dt/ 2>/dev/null || true
+            echo "内核树 amlogic 目录:"
+            ls cache/sources/linux-kernel-worktree/*/arch/arm64/boot/dts/amlogic/ 2>/dev/null \
+              | grep -i halo || echo "内核树里没有 halo-a311d 相关文件"
           fi
 
-          # 内核 deb
+          # 解包 linux-dtb deb，确认 dtb 真的在里面
+          DTB_DEB=$(find output -name 'linux-dtb-*.deb' | head -1 || true)
+          if [ -n "$DTB_DEB" ]; then
+            echo "--- linux-dtb deb 内 halo 相关内容 ---"
+            dpkg-deb -c "$DTB_DEB" 2>/dev/null | grep -i halo || \
+              echo "(该 deb 内没有 halo-a311d.dtb)"
+          fi
+
+          echo "--- 内核 deb 清单 ---"
           find output -name '*.deb' 2>/dev/null | head -20 || echo "无 deb 产出"
 
       - name: Upload artifacts
