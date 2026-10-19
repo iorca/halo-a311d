@@ -41,10 +41,14 @@ concurrency:
 on:
   push:
     branches: [main]
+    # ⚠ tags: 推 tag 时触发 → 编译完整镜像并发布 GitHub Release
+    #   'v*'  如 v1.0.0 / v2026.10.20
+    #   注意：推 tag 时不看 paths，下面用 if 过滤只对 tag 跑 build
+    tags: ['v*']
     paths:
       - 'dt/**'
       - 'config/**'
-      - 'fip/**'
+      - 'fip-blob/**'
       - 'boot/**'
       - 'scripts/**'
       - '.github/workflows/kernel.yml'
@@ -243,7 +247,12 @@ jobs:
           set -eux
           cd "$GITHUB_WORKSPACE/armbian-build"
           export USERPATCHES_PATH="$GITHUB_WORKSPACE/armbian-build/userpatches"
-          TGT="${{ github.event.inputs.target || 'kernel' }}"
+          # 推 tag → 强制 build（出完整镜像）；否则用手动选择的 target
+          if [ -n "${{ github.ref_type }}" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            TGT="build"
+          else
+            TGT="${{ github.event.inputs.target || 'kernel' }}"
+          fi
           # ⚠ 必须禁Docker —— 'build' / 'rootfs' 这类 target 会尝试拉
           #   armbian/build 的 Docker 镜像跑 chroot，GitHub runner 上没 Docker
           #   → "Docker run failed after 71s" + exit 43
@@ -289,7 +298,7 @@ jobs:
           #⚠ RELEASE 是 rootfs/build 的必填参数，
           #   缺了报 "Param 'RELEASE' is not set but needs to be set for rootfs CLI"
           if [ "$TGT" = "rootfs" ] || [ "$TGT" = "build" ]; then
-            REL="${{ github.event.inputs.release || 'noble' }}"
+            REL="${{ github.event.inputs.release || 'noble' }}"   # tag 事件无输入，回落 noble
             echo ">>> target=$TGT 需要 RELEASE=$REL"
             ./compile.sh "$TGT" \
               BOARD="${{ env.BOARD }}" \
@@ -380,3 +389,95 @@ jobs:
             armbian-build/output/**/*.deb.*
           retention-days: 30
           if-no-files-found: warn
+
+      # =====================================================================
+      # GitHub Release 发布 —— **仅 tag 推送时**
+      #
+      # 为什么要发 Release 而不是只留 artifact：
+      #   artifact 只在 Actions 里存 30 天，且必须登录才能下。
+      #   Release 是永久的、可匿名 wget 直链、还能写更新说明 —— 镜像就该放这。
+      #
+      # 触发方式：
+      #   git tag v2026.10.20 && git push origin v2026.10.20
+      # =====================================================================
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        needs: [Collect artifacts, Upload artifacts]
+        permissions:
+          contents: write          # 发 Release 必需
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          cd "$GITHUB_WORKSPACE/armbian-build"
+
+          echo "=== 待发布文件 ==="
+          ls -la out-halo/ 2>/dev/null || echo "(out-halo 为空)"
+          IMAGES=$(find out-halo/image -maxdepth 1 -type f \( -name '*.img' -o -name '*.xz' -o -name '*.gz' \) 2>/dev/null || true)
+          DTBS=$(find out-halo -maxdepth 1 -name '*.dtb' 2>/dev/null || true)
+
+          if [ -z "$IMAGES" ] && [ -z "$DTBS" ]; then
+            echo "::error::没有可发布的产物（镜像和 dtb 都为空）"
+            exit 1
+          fi
+
+          # 收集产物到临时目录
+          STAGE="$RUNNER_TEMP/release"
+          mkdir -p "$STAGE"
+          for f in $IMAGES $DTBS; do
+            cp -a "$f" "$STAGE/"
+          done
+          # deb 也放进去（可选，但便于单独取内核包）
+          find output -name '*.deb' 2>/dev/null | head -10 | while read -r d; do
+            cp -a "$d" "$STAGE/"
+          done
+
+          echo
+          echo "=== 发布清单 ==="
+          ls -la "$STAGE"
+
+          # 生成 release 说明
+          NOTES="$RUNNER_TEMP/notes.md"
+          {
+            echo "## halo-a311d \`${TAG}\`"
+            echo
+            echo "| 项 | 值 |"
+            echo "|----|----|"
+            echo "| BOARD | \`${{ env.BOARD }}\` |"
+            echo "| BOARDFAMILY | \`${{ env.FAMILY }}\` |"
+            echo "| BRANCH | \`${{ env.BRANCH }}\` |"
+            echo "| RELEASE | \`noble\` (Ubuntu 24.04) |"
+            echo "| 镜像类型 | \`minimal\` |"
+            echo "| commit | \\`${GITHUB_SHA:0:12}\\` |"
+            echo
+            echo "### 产物"
+            ls -la "$STAGE" | tail -n +2 | awk '{printf "- `%s` (%d B)\n", $NF, $5}'
+            echo
+            echo "### 刷写"
+            echo '```bash'
+            echo "# dd 到 eMMC（A311D 无 SD 卡槽，只能 eMMC 启动）"
+            echo "dd if=Armbian_*.img of=/dev/sdX bs=4M conv=fsync status=progress"
+            echo '```'
+            echo
+            echo "> ⚠ **尚未在真机上验证过启动。** DTS 与内核均在 CI 编译通过，"
+            echo "> 但 PCIe/USB3.0 冷切换与各外设功能需实机确认。"
+          } > "$NOTES"
+
+          # 已存在则覆盖
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo ">>> Release $TAG 已存在，先删除"
+            gh release delete "$TAG" --yes --cleanup-tag
+          fi
+
+          echo
+          echo "=== 创建 Release $TAG ==="
+          gh release create "$TAG" \
+            --title "halo-a311d \${TAG}" \
+            --notes-file "$NOTES" \
+            --verify-tag \
+            "$STAGE"/*
+
+          echo
+          echo "=== 发布完成 ==="
+          gh release view "$TAG" --json url -q '.url'
