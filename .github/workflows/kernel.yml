@@ -17,8 +17,12 @@
 #   armbian 支持增量编译，命中缓存后第二次快很多
 #
 # 手动触发可改target:
-#   target=kernel  只编内核（默认）
-#   target=image  编完整系统镜像（慢得多，30~60min）
+#   target=kernel         只编内核 deb（默认）
+#   target=rootfs         只编 rootfs
+#   target=full_firmware  完整镜像（内核+rootfs+u-boot+固件）
+#
+# ⚠ armbian 没有 'image' artifact，传image 报 'Unknown argument image' / exit 43
+#   artifact 定义见 lib/functions/artifacts/artifact-*.sh
 # =============================================================================
 name: kernel-build
 
@@ -35,11 +39,14 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: '构建目标'
+        description: '构建目标（armbian 的 artifact 名）'
         required: true
         default: kernel
         type: choice
-        options: [kernel, image]
+        options:
+          - kernel        # 只编内核 deb（~50 min）
+          - rootfs        # 只编 rootfs（armbian-base 文件系统）
+          - full_firmware # 内核 + rootfs + u-boot + 固件 → 完整镜像（~90 min）
   schedule:
     # 每周一早上 6 点增量重建（cron: '0 6 * * 1'）
     - cron: '0 6 * * 1'
@@ -193,6 +200,23 @@ jobs:
               echo "(该 deb 内没有 halo-a311d.dtb)"
           fi
 
+          # 完整镜像（target=full_firmware 时才有）
+          if [ -d output/images ]; then
+            echo "--- 完整镜像 ---"
+            find output/images -type f \( -name '*.img' -o -name '*.7z' -o -name '*.xz' \) \
+              -exec ls -la {} \; | head -20
+            mkdir -p out-halo/image
+            cp -a output/images/. out-halo/image/ 2>/dev/null || true
+          else
+            echo "(无 output/images —— target=kernel 正常现象)"
+          fi
+
+          # rootfs
+          if [ -d output/rootfs ]; then
+            echo "--- rootfs 产物 ---"
+            find output/rootfs -maxdepth 2 -name '*.tar*' -o -maxdepth 2 -name '*.zst' | head -10
+          fi
+
           echo "--- 内核 deb 清单 ---"
           find output -name '*.deb' 2>/dev/null | head -20 || echo "无 deb 产出"
 
@@ -202,6 +226,7 @@ jobs:
           name: halo-a311d-kernel-${{ github.event.inputs.target || 'kernel' }}
           path: |
             armbian-build/out-halo/*.dtb
+            armbian-build/out-halo/image/**
             armbian-build/output/**/*.deb
             armbian-build/output/**/*.deb.*
           retention-days: 30
