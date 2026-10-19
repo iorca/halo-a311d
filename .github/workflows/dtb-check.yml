@@ -4,7 +4,8 @@
 # 方案演进（踩坑记录）:
 #   v1 git clone torvalds/linux --sparse → 15 秒 exit 127，整仓太重
 #   v2 tarball v6.18.tar.gz           → 仍是 250MB 全量下载，且 raw API 在部分网络不通
-#   v3 稀疏 clone（当前）              → blob:none + sparse，只拉 amlogic 目录
+#   v3 稀疏 clone + scripts/dtc      → sparse 清单漏了 include/dt-bindings
+#   v4 稀疏 clone + include/dt-bindings（当前）→ 修正，ls 预检
 #
 # 关键: include-prefixes 必须在 sparse 清单里，否则 dt-bindings 头找不到，
 #      会报 "GPIOAO_10 未定义" 这类假错误。
@@ -59,15 +60,17 @@ jobs:
           git clone --depth 1 --filter=blob:none --sparse \
             "https://github.com/torvalds/linux.git" kernel
           cd kernel
-          # ⚠ include-prefixes 必须包含，否则 dt-bindings 头找不到，
-          #    会报 "GPIOAO_10 未定义" 这类假错误
+          # ⚠ dt-bindings 常量在 include/dt-bindings/，不在 scripts/dtc/
+          #   meson-g12a-gpio.h 提供 GPIOAO_10 等宏，缺了会报未定义
           git sparse-checkout set \
             arch/arm64/boot/dts/amlogic \
-            scripts/dtc/include-prefixes
+            include/dt-bindings
           echo "--- 关键文件校验 ---"
           ls arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi
           ls arch/arm64/boot/dts/amlogic/meson-g12b.dtsi
-          ls scripts/dtc/include-prefixes/dt-bindings/gpio/meson-g12a-gpio.h
+          ls include/dt-bindings/gpio/meson-g12a-gpio.h
+          ls include/dt-bindings/gpio/gpio.h
+          ls include/dt-bindings/leds/common.h
 
       - name: Compile DTBs
         run: |
@@ -87,8 +90,8 @@ jobs:
               exit 1
             fi
           done
-          if [ ! -d "$K/scripts/dtc/include-prefixes/dt-bindings" ]; then
-            echo "::error::缺少 dt-bindings 头目录"
+          if [ ! -f "$K/include/dt-bindings/gpio/meson-g12a-gpio.h" ]; then
+            echo "::error::缺少 dt-bindings/gpio/meson-g12a-gpio.h（提供 GPIOAO_10 等常量）"
             exit 1
           fi
 
@@ -96,7 +99,7 @@ jobs:
             echo "::group::compile $f.dtb"
             cpp -nostdinc \
                 -I "$D" \
-                -I "$K/scripts/dtc/include-prefixes" \
+                -I "$K/include" \
                 -undef -D__DTS__ -x assembler-with-cpp \
                 "$D/$f.dts" -o "/tmp/$f.pp.dts"
             dtc -I dts -O dtb -o "/tmp/$f.dtb" "/tmp/$f.pp.dts" 2>"/tmp/$f.err" || true
