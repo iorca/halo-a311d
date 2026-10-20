@@ -81,6 +81,18 @@ env:
   FAMILY: meson-g12b
   # ⚠ 必须与 armbian 的 KERNELPATCHDIR 一致：archive/meson64-6.18（BRANCH=current）
   KERNEL_SUBDIR: archive/meson64-6.18
+  # ================================================================
+  # ⚠⚠ TARGET_KIND = 本次真正要构建的目标，**只在这里算一次**
+  #   - 推 tag     → build（必须出镜像，Release 里要带 .img）
+  #   - dispatch   → 用户选的 target
+  #   - push / 定时任务 → kernel
+  #
+  # 之前 Build kernel 步骤自己算了一遍 tag→build，而 Collect artifacts
+  # 只看 inputs.target，**两边漂移**：tag 发布时实际在跑 build，
+  # 却按 kernel 的清单校验 → 镜像丢了也照样绿。
+  # 集中一处，杜绝再次漂移。
+  # ================================================================
+  TARGET_KIND: ${{ github.ref_type == 'tag' && 'build' || github.event.inputs.target || 'kernel' }}
 
 jobs:
   kernel:
@@ -100,7 +112,7 @@ jobs:
           set -eu
           echo "arch  : $(uname -m)"
           echo "kernel: $(uname -r)"
-          echo "target: ${{ github.event.inputs.target || 'kernel' }}"
+          echo "target: $TARGET_KIND"
           # ⚠ job 级 env: 不会成为 shell 环境变量，必须写进 GITHUB_ENV
           #   否则后续步骤里 $BUILD_DIR 会报unbound variable
           echo "BUILD_DIR=$GITHUB_WORKSPACE/armbian-build" >> "$GITHUB_ENV"
@@ -256,21 +268,22 @@ jobs:
           set -eux
           cd "$GITHUB_WORKSPACE/armbian-build"
           export USERPATCHES_PATH="$GITHUB_WORKSPACE/armbian-build/userpatches"
-          # tag 触发 → build（出完整镜像，Release 里要有 .img）
+          # tag → build（出完整镜像，Release 里要有 .img）
           #   实测 target=build 78min，其中 27min 花在 rootfs+镜像打包上。
           #   日常开发用 workflow_dispatch -f target=kernel（51min，只出 deb）。
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            TGT="build"
-          else
-            TGT="${{ github.event.inputs.target || 'kernel' }}"
-          fi
+          # ⚠ 统一取自 job 级 env TARGET_KIND —— 与 Collect artifacts 同源，
+          #   不允许再在这里另算一遍（tag 时两边不一致的老 bug 就是这么来的）。
+          TGT="$TARGET_KIND"
           # ⚠ 必须禁Docker —— 'build' / 'rootfs' 这类 target 会尝试拉
           #   armbian/build 的 Docker 镜像跑 chroot，GitHub runner 上没 Docker
           #   → "Docker run failed after 71s" + exit 43
           #   kernel target 之所以能过，是因为它不需要 chroot。
           export PREFER_DOCKER=no
           export DOCKER=no
-          export SKIP_ARMBIAN_IMAGE=yes
+          # ⚠ 原 export SKIP_ARMBIAN_IMAGE=yes 已删除：
+          #   在 armbian/build 里**根本不存在这个变量**
+          #   （gh search code SKIP_ARMBIAN_IMAGE repo:armbian/build → total_count=0）。
+          #   留着只会误导，且万一哪天真被 armbian 实现，会直接把 build 的镜像步骤跳掉。
           # ⚠⚠ 必须禁交互 —— 'build' 会弹 dialog 菜单（内核配置选择），
           #   CI 里 stdin 不是 tty → "stdin is not a terminal. can't use dialog" + exit 43
           #   KERNEL_CONFIGURE=no 是 armbian 官方 config 模板里的推荐值
@@ -306,9 +319,9 @@ jobs:
           fi
 
       - name: Collect artifacts
-        env:
-          # 从 workflow 层传下来，避免在 shell 里再解析一遍
-          TARGET_KIND: ${{ github.event.inputs.target || 'kernel' }}
+        # ⚠ TARGET_KIND 取自 **job 级 env**，这里**不许**再重定义
+        #   —— 上次就是这里重定义一个只看 inputs.target 的版本，
+        #      导致推 tag 时实际在跑 build、却按 kernel 的清单校验。
         run: |
           set -eux
           cd "$GITHUB_WORKSPACE/armbian-build"
@@ -379,13 +392,31 @@ jobs:
           #
           # 所以这里按 target 显式检查必需产物，缺了就 exit 1。
           # ================================================================
+          # require <描述> <搜索根> <pattern...>
+          #
+          # ⚠ 搜索根必须显式给 —— 各 target 的产物**不在同一个目录**：
+          #     kernel / uboot / firmware / build 的 deb 与 img → output/
+          #     **rootfs 的归档在 cache/rootfs/，不在 output/**
+          #       armbian lib/functions/artifacts/artifact-rootfs.sh:100
+          #         artifact_final_file="${SRC}/cache/rootfs/${artifact_name}_...tar.zst"
+          #     只搜 output 的话，rootfs 明明成功却被判失败。
+          #
+          # ⚠ 允许多 pattern —— 镜像可能被 armbian 压缩：
+          #     lib/functions/image/compress-checksum.sh:207,211
+          #     COMPRESS_OUTPUTIMAGE 含 xz|zst → 产出 .img.xz / .img.zst，
+          #     裸 .img 会被删掉，只认 '*.img' 会误报。
           require() {
-            local what="$1" pattern="$2" found
-            found=$(find output -name "$pattern" 2>/dev/null | head -1)
+            local what="$1" root="$2" found="" pat
+            shift 2
+            local -a pats=("$@")
+            for pat in "${pats[@]}"; do
+              found=$(find "$root" -name "$pat" -type f 2>/dev/null | head -1)
+              [ -n "$found" ] && break
+            done
             if [ -z "$found" ]; then
-              echo "::error::target=$TARGET_KIND 但缺少 $what（$pattern）"
-              echo "--- 实际产出的 deb ---"
-              find output -name '*.deb' 2>/dev/null || echo "(一个都没有)"
+              echo "::error::target=$TARGET_KIND 但缺少 $what（在 $root 下找 ${pats[*]}）"
+              echo "--- $root 实际产出 ---"
+              find "$root" -maxdepth 3 -type f 2>/dev/null | head -20 || echo "(目录不存在)"
               exit 1
             fi
             echo "  ✓ $what: $found"
@@ -393,19 +424,31 @@ jobs:
 
           case "$TARGET_KIND" in
             kernel)
-              require "内核 image deb" 'linux-image-*.deb'
-              require "内核 headers deb" 'linux-headers-*.deb'
-              require "内核 dtb deb" 'linux-dtb-*.deb'
+              require "内核 image deb" output 'linux-image-*.deb'
+              require "内核 headers deb" output 'linux-headers-*.deb'
+              require "内核 dtb deb" output 'linux-dtb-*.deb'
               ;;
             build)
-              require "内核 image deb" 'linux-image-*.deb'
-              require "完整镜像" '*.img'
+              require "内核 image deb" output 'linux-image-*.deb'
+              require "完整镜像" output '*.img' '*.img.xz' '*.img.zst' '*.7z'
               ;;
             uboot)
-              require "u-boot deb" 'linux-u-boot-*.deb'
+              # armbian lib/functions/artifacts/artifact-uboot.sh:154
+              #   artifact_map_packages=(["uboot"]="linux-u-boot-${BOARD}-${BRANCH}")
+              #   → linux-u-boot-halo-a311d-current_*.deb
+              require "u-boot deb" output 'linux-u-boot-*.deb'
+              ;;
+            rootfs)
+              # ⚠ cache/rootfs，不是 output —— 见 require() 上方注释
+              require "rootfs 归档" cache/rootfs '*.tar.zst' '*.tar.xz'
               ;;
             firmware)
-              require "固件 deb" 'armbian-firmware*.deb'
+              require "固件 deb" output 'armbian-firmware*.deb'
+              ;;
+            *)
+              # 没有校验规则 = 无法证明成功，宁可失败也不给假绿灯
+              echo "::error::未知 target=$TARGET_KIND —— 无对应产物校验规则，无法判断是否真成功"
+              exit 1
               ;;
           esac
           echo ">>> 产物校验通过（target=$TARGET_KIND）"
@@ -413,14 +456,18 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
         with:
-          name: halo-a311d-kernel-${{ github.event.inputs.target || 'kernel' }}
+          # ⚠ 必须与 TARGET_KIND 同源：以前这里单独用 inputs.target，
+          #   推 tag 时实际跑的是 build，产物包名却叫 ...-kernel，看名字分不清。
+          name: halo-a311d-${{ env.TARGET_KIND }}
           path: |
             armbian-build/out-halo/*.dtb
             armbian-build/out-halo/image/**
             armbian-build/output/**/*.deb
             armbian-build/output/**/*.deb.*
           retention-days: 30
-          if-no-files-found: warn
+          # ⚠ warn 会让「一个文件都没传上去」也显示绿灯 —— 已知假绿源之一。
+          #   require() 已保证 output/ 里有对应产物，这里应当是必中条件。
+          if-no-files-found: error
 
       # =====================================================================
       # GitHub Release 发布 —— **仅 tag 推送时**
@@ -445,11 +492,26 @@ jobs:
 
           echo "=== 待发布文件 ==="
           ls -la out-halo/ 2>/dev/null || echo "(out-halo 为空)"
-          IMAGES=$(find out-halo/image -maxdepth 1 -type f \( -name '*.img' -o -name '*.xz' -o -name '*.gz' \) 2>/dev/null || true)
+          IMAGES=$(find out-halo/image -maxdepth 1 -type f \( -name '*.img' -o -name '*.xz' -o -name '*.gz' -o -name '*.zst' -o -name '*.7z' \) 2>/dev/null || true)
           DTBS=$(find out-halo -maxdepth 1 -name '*.dtb' 2>/dev/null || true)
 
-          if [ -z "$IMAGES" ] && [ -z "$DTBS" ]; then
-            echo "::error::没有可发布的产物（镜像和 dtb 都为空）"
+          # ================================================================
+          # ⚠⚠ 这一步**只**在推 tag 时跑，而 tag 触发的 TARGET_KIND 恒为 build
+          #    → **镜像是必须的**。
+          #
+          #    原来的判断是 `if [ -z "$IMAGES" ] && [ -z "$DTBS" ]`：
+          #    build 一定会出 dtb，DTBS 永不为空 → 条件永远不成立
+          #    → **就算镜像没编出来也会照样发 Release**，
+          #      发一个只有两个 dtb、没有可刷镜像的版本。
+          # ================================================================
+          if [ -z "$IMAGES" ]; then
+            echo "::error::Release 必须包含镜像，但 out-halo/image 里没有任何 img/xz/gz/zst/7z"
+            echo "--- out-halo 实际内容 ---"
+            ls -laR out-halo/ 2>/dev/null | head -30
+            exit 1
+          fi
+          if [ -z "$DTBS" ]; then
+            echo "::error::Release 缺少 dtb（target=$TARGET_KIND 应有 *halo-a311d*.dtb）"
             exit 1
           fi
 
