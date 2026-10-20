@@ -443,8 +443,11 @@ jobs:
             echo
             echo "### 刷写"
             echo '```bash'
-            echo "# dd 到 eMMC（A311D 无 SD 卡槽，只能 eMMC 启动）"
+            echo "# 刷到 SD 卡（本板有 SD 卡座 CN1，dts 里 &sd_emmc_b 已 enable）"
+            echo "# ⚠ 确认设备名，别搞错：lsblk / dmesg | grep mmc"
             echo "dd if=Armbian_*.img of=/dev/sdX bs=4M conv=fsync status=progress"
+            echo "# 或刷到 eMMC"
+            echo "dd if=Armbian_*.img of=/dev/mmcblk0 bs=4M conv=fsync status=progress"
             echo '```'
             echo
             echo "> ⚠ **尚未在真机上验证过启动。** DTS 与内核均在 CI 编译通过，"
