@@ -306,10 +306,14 @@ jobs:
           fi
 
       - name: Collect artifacts
+        env:
+          # 从 workflow 层传下来，避免在 shell 里再解析一遍
+          TARGET_KIND: ${{ github.event.inputs.target || 'kernel' }}
         run: |
           set -eux
           cd "$GITHUB_WORKSPACE/armbian-build"
           mkdir -p out-halo
+          echo ">>> target=$TARGET_KIND"
 
           # ⚠ armbian 会把 userpatches 的 dts 用 **BOARD 名**重命名后再编 dtb，
           #   产物叫 halo-a311d.dtb / halo-a311d-pcie.dtb，
@@ -323,12 +327,19 @@ jobs:
             done < /tmp/dtb-list.txt
             ls -la out-halo/
           else
-            echo "::error::未找到任何 *halo-a311d*.dtb —— 板级 dts 没进内核"
             echo "userpatches dt 目录:"
             ls -la userpatches/kernel/*/dt/ 2>/dev/null || true
             echo "内核树 amlogic 目录:"
             ls cache/sources/linux-kernel-worktree/*/arch/arm64/boot/dts/amlogic/ 2>/dev/null \
               | grep -i halo || echo "内核树里没有 halo-a311d 相关文件"
+            # ⚠⚠ 硬失败，不能用 ::error:: —— 那只生成注解，步骤照样 exit 0
+            #   （2026-10-20 踩过：target=firmware 时只出固件包，job 却显示 success）
+            if [ "$TARGET_KIND" = "kernel" ] || [ "$TARGET_KIND" = "build" ]; then
+              echo "::error::未找到任何 *halo-a311d*.dtb —— 板级 dts 没进内核"
+              exit 1
+            else
+              echo "(target=$TARGET_KIND，不要求 dtb)"
+            fi
           fi
 
           # 解包 linux-dtb deb，确认 dtb 真的在里面
@@ -356,8 +367,48 @@ jobs:
             find output/rootfs -maxdepth 2 -name '*.tar*' -o -maxdepth 2 -name '*.zst' | head -10
           fi
 
-          echo "--- 内核 deb 清单 ---"
+          echo "--- deb 清单 ---"
           find output -name '*.deb' 2>/dev/null | head -20 || echo "无 deb 产出"
+
+          # ================================================================
+          # ⚠⚠ 产物类型硬校验
+          #
+          # 背景（2026-10-20 踩过）：target=firmware 只编了 armbian-firmware
+          # deb（164MB 固件包），**内核一个都没编**，但整个 job 显示 success。
+          # 原因是 ::error:: 只生成注解，不会让步骤失败。
+          #
+          # 所以这里按 target 显式检查必需产物，缺了就 exit 1。
+          # ================================================================
+          require() {
+            local what="$1" pattern="$2" found
+            found=$(find output -name "$pattern" 2>/dev/null | head -1)
+            if [ -z "$found" ]; then
+              echo "::error::target=$TARGET_KIND 但缺少 $what（$pattern）"
+              echo "--- 实际产出的 deb ---"
+              find output -name '*.deb' 2>/dev/null || echo "(一个都没有)"
+              exit 1
+            fi
+            echo "  ✓ $what: $found"
+          }
+
+          case "$TARGET_KIND" in
+            kernel)
+              require "内核 image deb" 'linux-image-*.deb'
+              require "内核 headers deb" 'linux-headers-*.deb'
+              require "内核 dtb deb" 'linux-dtb-*.deb'
+              ;;
+            build)
+              require "内核 image deb" 'linux-image-*.deb'
+              require "完整镜像" '*.img'
+              ;;
+            uboot)
+              require "u-boot deb" 'linux-u-boot-*.deb'
+              ;;
+            firmware)
+              require "固件 deb" 'armbian-firmware*.deb'
+              ;;
+          esac
+          echo ">>> 产物校验通过（target=$TARGET_KIND）"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
