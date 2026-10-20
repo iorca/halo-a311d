@@ -93,7 +93,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Show environment
         run: |
@@ -116,9 +116,12 @@ jobs:
         #     - python2 在 Ubuntu 24.04 已移除
         #     - gcc-12-aarch64-linux-gnu 在 24.04 不存在（默认 gcc-13/14）
         run: |
-          set -eux
+          set -eu
+          # ⚠ DEBIAN_FRONTEND + Dpkg::Use-Pty=0 与 armbian 内部保持一致，
+          #   避免 dpkg 试图开 pty 产生额外输出。
+          export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get -o Dpkg::Use-Pty=0 install -y -qq --no-install-recommends \
             git bc bison flex libssl-dev libelf-dev \
             python3 python3-dev python3-setuptools python3-pip python3-venv \
             rsync cpio kmod zip unzip xz-utils \
@@ -148,7 +151,12 @@ jobs:
             echo "::error::缺 qemu-x86_64（装 qemu-user-static）"
             exit 1
           fi
-          [ -d /usr/x86_64-linux-gnu ] || echo "::warning::缺 /usr/x86_64-linux-gnu（动态链接可能失败）"
+          # /usr/x86_64-linux-gnu 只对**动态链接**的 x86 程序有意义；
+          # aml_encrypt_g12b 是 statically linked（file 已确认），走 qemu 即可，
+          # 不需要它。所以这里只记录，不报警 —— 之前用 ::warning:: 会污染
+          # Annotations 面板，而实际从未影响过构建。
+          [ -d /usr/x86_64-linux-gnu ] && echo "x86_64 libs: present" \
+            || echo "x86_64 libs: absent (ok, aml_encrypt is static)"
           dtc --version
           echo "arch: $(uname -m)"
 
@@ -182,7 +190,7 @@ jobs:
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Cache armbian sources
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: armbian-build/cache/sources
           key: arm-sources-v4-${{ env.BRANCH }}-${{ env.FAMILY }}-${{ steps.armbian_sha.outputs.sha }}
@@ -191,7 +199,7 @@ jobs:
             arm-sources-v4-${{ env.BRANCH }}-${{ env.FAMILY }}-
 
       - name: Cache apt packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             /var/cache/apt
@@ -352,7 +360,7 @@ jobs:
           find output -name '*.deb' 2>/dev/null | head -20 || echo "无 deb 产出"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: halo-a311d-kernel-${{ github.event.inputs.target || 'kernel' }}
           path: |

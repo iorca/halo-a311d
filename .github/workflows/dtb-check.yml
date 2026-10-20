@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Verify toolchain (dtc usually preinstalled)
         # ubuntu runner 镜像已预装 device-tree-compiler。
@@ -153,7 +153,7 @@ jobs:
           exit $fail
 
       - name: Upload DTBs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: halo-a311d-dtb
           path: /tmp/meson-halo-a311d*.dtb
