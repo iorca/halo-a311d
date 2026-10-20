@@ -758,10 +758,18 @@
 	pinctrl-names = "default";
 };
 
-/* SARADC：SW5 未贴、SARADC_CH0/CH3 悬空 → 不用 adc-keys */
+/* SARADC：**禁用**
+ *
+ * 本板未使用：SW5(ADC_KEY) BOM=no 未贴，SARADC_CH0/CH3 悬空
+ * → 无 adc-keys、无 gpio-keys
+ *
+ * 且与 UART_AO_A **抢 GPIOAO_0**：本板 GPIOAO_0 = UART_AO_A_TX（调试串口），
+ * 同时也是 SARADC_CH0。&uart_AO 用 uart_ao_a_pins 把该脚 mux 成 uart_ao；
+ * 若 &saradc 先 probe 会切成 analog → **串口无输出**。
+ * 驱动 probe 顺序不定，属真隐患 → 直接禁用消除。
+ */
 &saradc {
-	status = "okay";
-	vref-supply = <&vddao_1v8>;
+	status = "disabled";
 };
 
 /* SPI NOR：与 eMMC 数据线冲突 → 保持 disabled（VIM3 原样） */
