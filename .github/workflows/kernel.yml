@@ -248,10 +248,14 @@ jobs:
           set -eux
           cd "$GITHUB_WORKSPACE/armbian-build"
           export USERPATCHES_PATH="$GITHUB_WORKSPACE/armbian-build/userpatches"
-          # 推 tag → kernel（约 51min）；镜像另用 workflow_dispatch -f target=build
-          # 实测：target=build 78min，其中 27min 花在 rootfs+镜像打包上，
-          # tag 只是为了出 deb/做 Release 记录，不必每次都编完整镜像。
-          TGT="${{ github.event.inputs.target || 'kernel' }}"
+          # tag 触发 → build（出完整镜像，Release 里要有 .img）
+          #   实测 target=build 78min，其中 27min 花在 rootfs+镜像打包上。
+          #   日常开发用 workflow_dispatch -f target=kernel（51min，只出 deb）。
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TGT="build"
+          else
+            TGT="${{ github.event.inputs.target || 'kernel' }}"
+          fi
           # ⚠ 必须禁Docker —— 'build' / 'rootfs' 这类 target 会尝试拉
           #   armbian/build 的 Docker 镜像跑 chroot，GitHub runner 上没 Docker
           #   → "Docker run failed after 71s" + exit 43
@@ -455,10 +459,15 @@ jobs:
 
           echo
           echo "=== 创建 Release $TAG ==="
+          # ⚠ 不能用 --verify-tag：
+          #   gh 按**当前 git remote** 找 tag，而 CI 检出的是 armbian/build
+          #   → 报 "tag xxx doesn't exist in the repo armbian/build"
+          #   tag 本就是触发本次 run 的前提，存在性无需再验。
+          #   --repo 显式指定目标仓库，避免 gh 猜错 remote。
           gh release create "$TAG" \
             --title "halo-a311d \${TAG}" \
             --notes-file "$NOTES" \
-            --verify-tag \
+            --repo "${{ github.repository }}" \
             "$STAGE"/*
 
           echo
