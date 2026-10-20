@@ -76,8 +76,7 @@ dd if=/dev/mmcblk1boot0 of=somewhere/fip.bin bs=512 skip=1
 dd if=/dev/mmcblk1    of=somewhere/fip.bin bs=512 skip=1 count=8192
 ```
 
-FIP 在 eMMC 上（A311D 的 BootROM 只从 eMMC 加载 FIP，与 SD 卡无关）。
-本板有 SD 卡座（CN1），但 SD 卡是**系统启动盘**，不是 FIP 载体。
+A311D 无 SD 卡槽，FIP 必须在 eMMC。
 
 ### 校验放对了
 
