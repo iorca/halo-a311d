@@ -137,11 +137,31 @@ jobs:
                 -I "$K/include" \
                 -undef -D__DTS__ -x assembler-with-cpp \
                 "$D/$f.dts" -o "/tmp/$f.pp.dts"
-            dtc -I dts -O dtb -o "/tmp/$f.dtb" "/tmp/$f.pp.dts" 2>"/tmp/$f.err" || true
+            # ⚠⚠ 不能 `dtc ... || true`：那会把**退出码直接丢掉**，
+            #   只剩「过滤后 stderr 是否非空」这一个判据。
+            #   一旦 dtc 失败却没留下未被过滤的 stderr（或 stderr 恰好全是
+            #   上游既有警告），就会走进 else 打印 "OK" —— 又一个假绿灯。
+            #   （与 kernel.yml 里 ::error:: 不配 exit 1 是同一类错误）
+            #   → 显式接住退出码，并且**额外验证产物文件非空**。
+            set +e
+            dtc -I dts -O dtb -o "/tmp/$f.dtb" "/tmp/$f.pp.dts" 2>"/tmp/$f.err"
+            dtc_rc=$?
+            set -e
             # 过滤上游既有警告（unit_address_vs_reg 等），只看本板问题
             grep -vE 'unit_address_vs_reg|simple_bus_reg|avoid_unnecessary_addr_size|also defined at' \
                  "/tmp/$f.err" > "/tmp/$f.filt" || true
-            if [ -s "/tmp/$f.filt" ]; then
+            if [ "$dtc_rc" -ne 0 ]; then
+              # 不管 stderr 被过滤成什么样，dtc 自己都说失败了 → 必须红
+              echo "::error file=dt/$f.dts::dtc 失败，退出码 $dtc_rc"
+              cat "/tmp/$f.err"
+              fail=1
+            elif [ ! -s "/tmp/$f.dtb" ]; then
+              # 没产出 dtb / 产出 0 字节 —— 以前只在 else 分支里 stat 打印一下，
+              # 从不检查，0 字节也会显示 OK
+              echo "::error file=dt/$f.dts::dtc 未产出 dtb 或文件为空"
+              cat "/tmp/$f.err"
+              fail=1
+            elif [ -s "/tmp/$f.filt" ]; then
               echo "::error file=dt/$f.dts::$(head -1 "/tmp/$f.filt")"
               cat "/tmp/$f.filt"
               fail=1
@@ -157,3 +177,6 @@ jobs:
         with:
           name: halo-a311d-dtb
           path: /tmp/meson-halo-a311d*.dtb
+          # ⚠ 默认 warn 意味着「一个都没传上去」也显示绿灯；
+          #   上面已经确认文件非空才走到这里，所以必须是硬条件。
+          if-no-files-found: error
