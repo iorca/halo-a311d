@@ -455,10 +455,15 @@ jobs:
 
           echo
           echo "=== 创建 Release $TAG ==="
+          # ⚠ 不能用 --verify-tag：
+          #   gh 按**当前 git remote** 找 tag，而 CI 检出的是 armbian/build
+          #   → 报 "tag xxx doesn't exist in the repo armbian/build"
+          #   tag 本就是触发本次 run 的前提，存在性无需再验。
+          #   --repo 显式指定目标仓库，避免 gh 猜错 remote。
           gh release create "$TAG" \
             --title "halo-a311d \${TAG}" \
             --notes-file "$NOTES" \
-            --verify-tag \
+            --repo "${{ github.repository }}" \
             "$STAGE"/*
 
           echo
