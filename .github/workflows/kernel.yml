@@ -427,10 +427,14 @@ jobs:
           fi
 
           # 收集产物到临时目录
+          # ⚠ 加 tag 前缀：两个分支产出的镜像文件名完全相同
+          #   （Armbian_..._Halo-a311d_noble_current_6.18.57_minimal.img），
+          #   不加前缀在 Releases 页面根本分不出哪个是主线 u-boot 版本。
           STAGE="$RUNNER_TEMP/release"
           mkdir -p "$STAGE"
           for f in $IMAGES $DTBS; do
-            cp -a "$f" "$STAGE/"
+            base="$(basename "$f")"
+            cp -a "$f" "$STAGE/${TAG}-${base}"
           done
           # deb 也放进去（可选，但便于单独取内核包）
           find output -name '*.deb' 2>/dev/null | head -10 | while read -r d; do
@@ -441,10 +445,21 @@ jobs:
           echo "=== 发布清单 ==="
           ls -la "$STAGE"
 
+          # 判断 u-boot 来源（board conf 用哪个 FIP 方案）
+          if grep -q "gxlimg_repack_fip_with_new_uboot" \
+               "$GITHUB_WORKSPACE/config/boards/halo-a311d.conf" 2>/dev/null; then
+            UBOOT_KIND="**主线 u-boot** (gxlimg 重打包厂商 FIP, v2026.04)"
+          else
+            UBOOT_KIND="LibreELEC khadas-vim3 FIP (含厂商原版 u-boot)"
+          fi
+          echo ">>> u-boot 来源: $UBOOT_KIND"
+
           # 生成 release 说明
           NOTES="$RUNNER_TEMP/notes.md"
           {
             echo "## halo-a311d \`${TAG}\`"
+            echo
+            echo "> **u-boot 来源：${UBOOT_KIND}**"
             echo
             echo "| 项 | 值 |"
             echo "|----|----|"
