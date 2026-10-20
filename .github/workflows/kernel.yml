@@ -436,7 +436,7 @@ jobs:
             echo "| BRANCH | \`${{ env.BRANCH }}\` |"
             echo "| RELEASE | \`noble\` (Ubuntu 24.04) |"
             echo "| 镜像类型 | \`minimal\` |"
-            echo "| commit | \\`${GITHUB_SHA:0:12}\\` |"
+            echo "| commit | ${GITHUB_SHA:0:12} |"
             echo
             echo "### 产物"
             ls -la "$STAGE" | tail -n +2 | awk '{printf "- `%s` (%d B)\n", $NF, $5}'
@@ -452,7 +452,7 @@ jobs:
           } > "$NOTES"
 
           # 已存在则覆盖
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo ">>> Release $TAG 已存在，先删除"
             gh release delete "$TAG" --yes --cleanup-tag
           fi
@@ -465,11 +465,12 @@ jobs:
           #   tag 本就是触发本次 run 的前提，存在性无需再验。
           #   --repo 显式指定目标仓库，避免 gh 猜错 remote。
           gh release create "$TAG" \
-            --title "halo-a311d \${TAG}" \
+            --title "halo-a311d $TAG" \
             --notes-file "$NOTES" \
             --repo "${{ github.repository }}" \
             "$STAGE"/*
 
           echo
           echo "=== 发布完成 ==="
-          gh release view "$TAG" --json url -q '.url'
+          # ⚠ 必须带 --repo：gh 会按当前 git remote 猜，而 CI 检出的是 armbian/build
+          gh release view "$TAG" --repo "${{ github.repository }}" --json url -q '.url'
