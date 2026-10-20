@@ -136,9 +136,43 @@ echo "✓ $DT_DIR  (BRANCH=$BRANCH_NAME → KERNEL_MAJOR_MINOR=$KMM)"
 # -----------------------------------------------------------------------------
 # 5. U-Boot 模式选择脚本（冷切换）
 # -----------------------------------------------------------------------------
-install -m 0644 "$REPO_ROOT/boot/althaea-mode.hush" \
-              "$BUILD_DIR/fip/halo-a311d/althaea-mode.hush" 2>/dev/null || true
-echo "✓ althea-mode.hush"
+# ⚠⚠ 旧代码是个**假成功**（2026-10-21 查出）:
+#     install ... "$BUILD_DIR/fip/halo-a311d/althaea-mode.hush" 2>/dev/null || true
+#     echo "✓ althea-mode.hush"
+#   - 目标目录 $BUILD_DIR/fip/halo-a311d **全仓库没有任何地方创建**
+#     （grep 确认：除这行自己外无人写过该路径）→ install 每次必然失败
+#   - stderr 被 2>/dev/null 吞、失败被 || true 吞
+#   - 紧接着**无条件**打印 ✓ —— CI 每次都宣称部署成功，实际一个字节都没落地
+#
+# 正确机制（armbian lib/functions/rootfs/customize.sh:23-34）:
+#   $UP/overlay            → bind-mount 成 chroot 里的 /tmp/overlay（**只读**）
+#   $UP/customize-image.sh → 在 chroot 内被执行
+#   ⚠ overlay **只是传文件通道，不会自动进镜像**；必须由 customize-image.sh
+#     自己在 chroot 里 cp 到 /boot 才会真正落到镜像中。
+MODE_SRC="$REPO_ROOT/boot/althaea-mode.hush"
+MODE_OVERLAY="$UP/overlay/boot"
+mkdir -p "$MODE_OVERLAY"
+# ⚠ 这里刻意不写 2>/dev/null、不写 || true：失败就该当场炸出来
+install -m 0644 "$MODE_SRC" "$MODE_OVERLAY/althaea-mode.hush"
+# 硬校验 —— 不在成功路径上也要复核真的落地了
+if [ ! -s "$MODE_OVERLAY/althaea-mode.hush" ]; then
+    echo "✗ althaea-mode.hush 未部署到 $MODE_OVERLAY" >&2
+    exit 1
+fi
+echo "✓ overlay/boot/althaea-mode.hush  ($(wc -c < "$MODE_OVERLAY/althaea-mode.hush") B)"
+
+# chroot 内执行的定制脚本 —— 少了它，overlay 里的文件永远不会进镜像
+CUSTOM_SRC="$REPO_ROOT/scripts/customize-image.sh"
+if [ ! -f "$CUSTOM_SRC" ]; then
+    echo "✗ 缺少 $CUSTOM_SRC —— overlay 里的文件不会进镜像" >&2
+    exit 1
+fi
+install -m 0755 "$CUSTOM_SRC" "$UP/customize-image.sh"
+if [ ! -x "$UP/customize-image.sh" ]; then
+    echo "✗ customize-image.sh 未部署到 $UP" >&2
+    exit 1
+fi
+echo "✓ customize-image.sh  (overlay -> /boot)"
 
 echo
 echo "==> 部署完成。编译命令："
