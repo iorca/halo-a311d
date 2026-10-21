@@ -81,9 +81,99 @@ jobs:
           echo "--- 关键文件校验 ---"
           ls arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi
           ls arch/arm64/boot/dts/amlogic/meson-g12b.dtsi
+          # OPP 校验要用的两份上游参考（缺一不可）
+          ls arch/arm64/boot/dts/amlogic/meson-g12b-a311d.dtsi
+          ls arch/arm64/boot/dts/amlogic/meson-g12b-khadas-vim3.dtsi
           ls include/dt-bindings/gpio/meson-g12a-gpio.h
           ls include/dt-bindings/gpio/gpio.h
           ls include/dt-bindings/leds/common.h
+
+      - name: Verify the two board variants differ only in the FUSB340 choice
+        # 两个变体是**手工维护的复制品**（历史上由 work/mk_pcie_variant.py 生成，
+        # 该脚本已删除 → 现在靠人复制）。
+        #
+        # 它们应当是同一份板级描述，只差 FUSB340 那侧的选择：
+        #   model 字符串 / &usb 与 &pcie 的 status 互斥 / &pcie 的 reset-gpios
+        # 除此之外的任何差异都是**漂移** —— 一边改了另一边忘了改。
+        #
+        # 为什么值得守：两个变体分别发布，不会同时出现在一个系统里，
+        # 没人会拿它们互相比较。漂移的表现是
+        # 「USB3.0 模式正常，PCIe 模式某个外设不工作」，
+        # 而本仓库历史上正好踩过这类坑（LED 属性名两变体写法不一致、
+        # hog 位置两变体不一致）。
+        run: |
+          set -eu
+          if ! python3 "$GITHUB_WORKSPACE/scripts/check-variant-diff.py" \
+               "$GITHUB_WORKSPACE/dt/meson-halo-a311d.dts" \
+               "$GITHUB_WORKSPACE/dt/meson-halo-a311d-pcie.dts"; then
+            exit 1
+          fi
+
+      - name: Verify board DTS includes exactly one SoC dtsi
+        # 直接卡住「同时 include 多份 SoC 的 dtsi」这个**病因**。
+        #
+        #   meson-g12b-a311d.dtsi / meson-g12b-s922x.dtsi 等都在根节点下定义
+        #   同名 opp-table-0 / opp-table-1（label 也同名），电压值不同。
+        #   dtc 合并它们而不是报错（livetree.c: merge_nodes()），
+        #   产出一张跨 SoC 混搭的 CPU 频率-电压表。
+        #
+        #   本板是 A311D → 只允许 meson-g12b-a311d.dtsi 一份。
+        run: |
+          set -eu
+          fail=0
+          for f in "$GITHUB_WORKSPACE"/dt/meson-halo-a311d.dts \
+                   "$GITHUB_WORKSPACE"/dt/meson-halo-a311d-pcie.dts; do
+            echo "::group::include check $(basename "$f")"
+            # 板级 dts 只应 include 恰好一个 SoC 级 dtsi
+            n=$(grep -cE '^#include "meson-g12b-[a-z0-9]*\.dtsi"' "$f" || true)
+            names=$(grep -oE '^#include "meson-g12b-[a-z0-9]*\.dtsi"' "$f" \
+                    | sed 's/.*"\(.*\)"/\1/' | tr '\n' ' ')
+            echo "  SoC dtsi 引用: $names"
+            if [ "$n" -ne 1 ]; then
+              echo "::error file=dt/$(basename "$f")::应恰好 include 1 个 SoC dtsi，实际 $n 个（$names）"
+              echo "::error::多个 SoC dtsi 会定义同名 opp-table-0/opp-table-1，"
+              echo "::error::dtc 会把它们合并成混搭的 CPU 频率-电压表。"
+              fail=1
+            elif ! grep -q '^#include "meson-g12b-a311d.dtsi"' "$f"; then
+              echo "::error file=dt/$(basename "$f")::本板是 A311D，应 include meson-g12b-a311d.dtsi"
+              fail=1
+            else
+              echo "  OK: 只 include meson-g12b-a311d.dtsi"
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: Check DTS label references (offline pre-check)
+        # ⚠ 这道检查对应一个真实的、dtc 报出来才发现的 bug。
+        #
+        #   删掉 &i2c_AO 下的 rtc@51 (hym8563) 节点后，aliases 里的
+        #       rtc0 = &rtc;
+        #   成了**悬空引用** —— 那个 &rtc label 就是被删节点自己定义的。
+        #   dtc 能报出来（path_references, ERROR 级），但要跑完整内核树
+        #   才有那个错误信息；而 CI 里改一行 DTS 就要等一次全量 clone。
+        #
+        #   本脚本离线完成同样的判断：
+        #     1. 沿 include 链收集上游 dtsi 定义的全部 label
+        #     2. 收集板级 dts 里引用的全部 &label
+        #     3. 报告「引用了但没定义」的 label
+        #
+        #   只在编译**之前**跑一遍，属于快速失败 —— 真正的语法检查
+        #   仍然由后面的 dtc 负责（它能查的东西更多）。
+        run: |
+          set -eu
+          K="$RUNNER_TEMP/kernel"
+          D="$K/arch/arm64/boot/dts/amlogic"
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::label ref check $f.dts"
+            if ! python3 "$GITHUB_WORKSPACE/scripts/check-dts-refs.py" \
+                 "$GITHUB_WORKSPACE/dt/$f.dts" "$D"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
 
       - name: Compile DTBs
         run: |
@@ -96,8 +186,13 @@ jobs:
 
           fail=0
           # 先确认 dts 依赖链完整（只有 SoC 级文件，板级 dts 已由上面 cp 放入）
-          for req in meson-g12b-a311d.dtsi meson-g12.dtsi \
-                     meson-g12-common.dtsi meson-g12b-s922x.dtsi; do
+          # ⚠ 列表必须与板级 dts 的实际 include 链一致：
+          #   meson-h12b-a311d.dtsi → meson-g12b.dtsi → meson-g12.dtsi
+          #                                    → meson-g12-common.dtsi
+          #   以前这里列的是 meson-g12b-s922x.dtsi（那是多余 include 带来的依赖），
+          #   却漏了真正必需的 meson-g12b.dtsi —— 依赖链检查形同虚设。
+          for req in meson-g12b-a311d.dtsi meson-g12b.dtsi meson-g12.dtsi \
+                     meson-g12-common.dtsi; do
             if [ ! -f "$D/$req" ]; then
               echo "::error::缺少 SoC 依赖 $D/$req"
               ls "$D" | head -30
@@ -148,7 +243,17 @@ jobs:
             dtc_rc=$?
             set -e
             # 过滤上游既有警告（unit_address_vs_reg 等），只看本板问题
-            grep -vE 'unit_address_vs_reg|simple_bus_reg|avoid_unnecessary_addr_size|also defined at' \
+            #
+            # ⚠⚠⚠ 不要再过滤 "also defined at"！
+            #   那是 dtc 报告「同名节点/属性被合并」时打的位置信息
+            #   （checks.c: check_msg() → "  also defined at %s"）。
+            #   本仓库曾因为过滤掉它而长期看不见一个真 bug：
+            #   板级 DTS 同时 include 了 a311d 与 s922x 两份 SoC 的 dtsi，
+            #   两者都定义同名 opp-table-0/opp-table-1，dtc 会**合并**成混搭表
+            #   （livetree.c: merge_nodes()），CPU 频率-电压表被污染。
+            #   dtc 自己不报错（合并后树里已无重名节点），
+            #   所以「also defined at」是当时唯一能暴露问题的线索。
+            grep -vE 'unit_address_vs_reg|simple_bus_reg|avoid_unnecessary_addr_size' \
                  "/tmp/$f.err" > "/tmp/$f.filt" || true
             if [ "$dtc_rc" -ne 0 ]; then
               # 不管 stderr 被过滤成什么样，dtc 自己都说失败了 → 必须红
@@ -172,11 +277,149 @@ jobs:
           done
           exit $fail
 
+      - name: Verify CPU OPP tables against upstream A311D
+        # ⚠ 这道检查对应一个真实的、dtc 查不出来的 bug。
+        #
+        #   板级 DTS 曾经同时 include meson-g12b-a311d.dtsi 和
+        #   meson-g12b-s922x.dtsi。两者都定义根节点下的同名
+        #   opp-table-0 / opp-table-1，电压值不同（A311D 1GHz=761000µV，
+        #   S922X 1GHz=731000µV）。
+        #
+        #   dtc 对同名节点是**合并**（livetree.c: merge_nodes()）而不是报错：
+        #   属性后者覆盖前者，子节点取并集 → 产出一张跨 SoC 混搭的
+        #   频率-电压表，还混进 A311D 不支持的 1.896 / 1.992 GHz。
+        #   合并后树里已无重名节点，所以 dtc 的 duplicate_node_names /
+        #   duplicate_label 两道 ERROR 级检查都不触发，
+        #   **dtc 退出码是 0，CI 全绿，产物却是错的**。
+        #
+        #   所以只能显式比对：DTB 里的 OPP 表必须与上游
+        #   meson-g12b-a311d.dtsi 的定义完全一致。
+        run: |
+          set -eu
+          K="$RUNNER_TEMP/kernel"
+          D="$K/arch/arm64/boot/dts/amlogic"
+          # 上游参考文件：
+          #   meson-g12b-a311d.dtsi       → CPU OPP 表的**内容**（A311D 的电压值）
+          #   meson-g12b-khadas-vim3.dtsi → 板级补充（regulator 等）
+          # 「CPU 该用哪张表」上游放在哪个文件随内核版本变（v6.18 在
+          # khadas-vim3.dtsi，master 挪进了 a311d.dtsi 自己），
+          # 所以两个都给，脚本在全部参考里一起找。
+          #
+          # 期望值全部取自上游，不采信被测板级 DTS 自己的声明 ——
+          # 否则「板级把 CPU 指到错误的表」这类错误永远发现不了
+          # （板级说 cpu0 用 A 表，DTB 里 cpu0 确实用 A 表，自洽但都是错的）。
+          REFS=()
+          for r in meson-g12b-a311d.dtsi meson-g12b-khadas-vim3.dtsi; do
+            if [ ! -f "$D/$r" ]; then
+              echo "::error::找不到上游参考 $D/$r"
+              exit 1
+            fi
+            REFS+=("$D/$r")
+          done
+          for r in "${REFS[@]}"; do echo "参考: $r"; done
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::OPP check $f.dtb"
+            if ! python3 "$GITHUB_WORKSPACE/scripts/check-opp-tables.py" \
+                 "/tmp/$f.dtb" "${REFS[@]}"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: Verify GPIO hogs are in the form the kernel accepts
+        # ⚠ 这道检查对应一个真实的、**内核完全不认**的 bug。
+        #
+        #   板级 DTS 曾经这样写 FUSB340 SEL 的 hog：
+        #       fusb340_hog {                              ← 挂在根节点下
+        #           gpio-hog-controller-gpios = <...>;    ← 这个属性上游不存在
+        #           line-name = "FUSB340_SEL";
+        #       };
+        #
+        #   三处都错，且**每一处都静默失效**：
+        #     1. `gpio-hog-controller-gpios` 在 torvalds/linux 全树 0 命中，
+        #        上游真正用的是 `gpios`
+        #     2. 挂在根节点下 —— 内核 of_gpiochip_scan_gpios() 只遍历
+        #        gpio controller 自己的子节点，根节点下的它根本不看
+        #     3. 没有 `gpio-hog` 这个 bool 属性 → 内核不认为这是个 hog
+        #   → 编译通过、CI 全绿、产物是错的。
+        #
+        #   还有第 4 处更隐蔽：of_parse_own_gpio() 要求
+        #   input / output-low / output-high 三选一**必须显式写**，
+        #   否则内核打印 "no hogging state specified, bailing out" 并
+        #   **跳过该 hog**（不是"自动变成 input"）。
+        run: |
+          set -eu
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::gpio hog check $f.dtb"
+            if ! python3 "$GITHUB_WORKSPACE/scripts/check-gpio-hogs.py" \
+                 "/tmp/$f.dtb"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: Validate DTBs against the kernel device-tree schemas
+        # ⚠ 对应报告第 5 节建议的最后一条护栏（dtbs_check）。
+        #
+        # 内核自带一套 device-tree schema 校验（dt-schema，仓库
+        # devicetree-org/dt-schema），上游用它跑 `make dtbs_check`。
+        # 它抓的是「属性名写错 / 必填属性缺失 / 极性写反」这类
+        # **编译期完全查不出来、运行期才暴露**的问题 ——
+        # 正是本仓库反复踩的坑（LED 的 trigger 属性名、gpio-hog 的属性名与位置）。
+        #
+        # 为什么不直接用上游的 `make dtbs_check`：
+        #   它要求完整内核树 + defconfig + 全部 schema，对本仓库太重。
+        #   这里用 dt-validate 直接跑编出来的 dtb，效果等价、成本低得多。
+        #
+        # 为什么需要配套的 check-dtschema.py：
+        #   dt-validate 直接跑会报两类噪音 ——
+        #     1) 本板根节点的自研 ID `althea,a311d` 上游没有 schema
+        #        → 根节点 compatible 匹配失败，一次报几十行
+        #     2) 上游 SoC 节点的 schema 覆盖不全
+        #   脚本只豁免这两类，其余 error 一律判失败。
+        run: |
+          set -eu
+          python3 -m pip install --quiet \
+            "git+https://github.com/devicetree-org/dt-schema.git@master"
+          dt-validate --version
+
+          cd "$RUNNER_TEMP/kernel"
+          git sparse-checkout add Documentation/devicetree/bindings
+          B="$PWD/Documentation/devicetree/bindings"
+          echo "schema yaml 数量: $(find "$B" -name '*.yaml' | wc -l)"
+
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::dt-schema check $f.dtb"
+            # -c: 只校验 compatible 能匹配到 schema 的节点
+            # --json-output: 结构化输出，交给 check-dtschema.py 判定
+            # stdout/stderr 一并留档：dt-validate 的原始诊断也上传成
+            # artifact，任何人都能独立复核 check-dtschema.py 的豁免判断
+            dt-validate -s "$B" -c --json-output "/tmp/$f.schema.json" \
+              "/tmp/$f.dtb" 2>&1 | tee "/tmp/$f.schema.txt" || true
+            if [ ! -f "/tmp/$f.schema.json" ]; then
+              echo "::error file=dt/$f.dts::dt-validate 没有产出 JSON 结果"
+              fail=1
+            elif ! python3 "$GITHUB_WORKSPACE/scripts/check-dtschema.py" \
+                 "/tmp/$f.schema.json"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
       - name: Upload DTBs
         uses: actions/upload-artifact@v5
         with:
           name: halo-a311d-dtb
-          path: /tmp/meson-halo-a311d*.dtb
+          path: |
+            /tmp/meson-halo-a311d*.dtb
+            /tmp/meson-halo-a311d*.schema.json
+            /tmp/meson-halo-a311d*.schema.txt
           # ⚠ 默认 warn 意味着「一个都没传上去」也显示绿灯；
           #   上面已经确认文件非空才走到这里，所以必须是硬条件。
           if-no-files-found: error

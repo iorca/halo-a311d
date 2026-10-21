@@ -12,7 +12,8 @@
  *   - FUSB340TMX 切换改由 GPIOA_2 直控 SEL（VIM3 靠 MCU）
  *   - 以太网 PHY 地址 = 1（strap 实测，非 VIM3 的 0）
  *   - 新增 SPI 点屏（GPIOA_3/GPIOA_4/GPIOH_4~8）
- *   - 新增两颗 SHT40（地址均0x44，分挂两个 I2C 控制器）
+ *   - 新增 SHT40 温湿度（U42，地址 0x44，走 &i2c3）
+ *     （U45 虽贴装但 I2C 线网表悬空，未启用）
  *   - 摄像头未使用 → CSI/ISP 关闭
  *
  * 数据来源: MAIN_V0.3 全工程网表实测（495 元件/ 393 网络）
@@ -30,7 +31,7 @@
  * ✅ 已确认可用：CPU 调压(VIM3 骨架) / 以太网(rgmii+tx-delay+rx-delay) /
  *    SDIO / SD / eMMC / HDMI / CEC / USB / 运行灯 / 红外GPIO /
  *    **SPI 硬件 SPI1(GPIOH_4~7, CS=GPIOH_6/SCLK=GPIOH_7)** /
- *    SPI 屏 RST-RS-背光 / **两颗 SHT40(i2c3 + i2c_AO，同 0x44 不同控制器)**
+ *    SPI 屏 RST-RS-背光 / **SHT40(U42, i2c3)**
  */
 
 /dts-v1/;
@@ -40,8 +41,21 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+/* ⚠⚠ 只能 include a311d 这一份，**不要**再 include meson-g12b-s922x.dtsi。
+ *
+ *   原因：两个 dtsi 都在根节点下定义**同名** opp-table-0 / opp-table-1
+ *   （label 也同名：cpu_opp_table_0 / cpub_opp_table_1），但电压值不同：
+ *     a311d: 1.0GHz = 761000 µV
+ *     s922x: 1.0GHz = 731000 µV
+ *   dtc 对同名节点是**合并**而非报错（livetree.c: merge_nodes()），
+ *   后 include 的 s922x 覆盖同名属性、子节点取并集 →
+ *   产出一张「A311D + S922X 混搭」的 CPU 频率-电压表，
+ *   且混入 A311D 不支持的频率点（1.896 / 1.992 GHz）。
+ *
+ *   本板是 A311D，只需 a311d 的表。上游 A311D VIM3 板级文件
+ *   （meson-g12b-a311d-khadas-vim3.dts）也只 include 一份。
+ */
 #include "meson-g12b-a311d.dtsi"
-#include "meson-g12b-s922x.dtsi"
 
 / {
 	model = "Althea A311D (MAIN_V0.3)";
@@ -50,7 +64,13 @@
 	aliases {
 		serial0 = &uart_AO;
 		ethernet0 = &ethmac;
-		rtc0 = &rtc;
+		/* ⚠ 本板**没有** RTC 芯片（网表 495 元件里查无 8563/3231/DS1307 等），
+		 *   原先指向厂商 hym8563 的 rtc@51 节点已删除。
+		 *   改指 SoC 内置的虚拟 RTC（vrtc: rtc@a8，compatible="amlogic,meson-vrtc"，
+		 *   驱动 drivers/rtc/rtc-meson-vrtc.c，上游 g12-common.dtsi 里默认 okay）。
+		 *   上游 VIM3 用 rtc0=&rtc(hym8563) + rtc1=&vrtc，本板只有 vrtc 一个。
+		 */
+		rtc0 = &vrtc;
 	};
 
 	chosen {
@@ -173,6 +193,21 @@
 	 *      Q8 BASE ← R110(100Ω) ← GPIOAO_10
 	 * NPN 低边开关 → 高电平点亮 → GPIO_ACTIVE_HIGH
 	 * AO 域 can_sleep=false → 内核 heartbeat 可在 atomic 上下文工作
+	 *
+	 * ⚠⚠ 属性名必须是 **linux,default-trigger**（带 `linux,` 前缀）！
+	 *   内核 6.18 里读 trigger 的只有 LED core 一处：
+	 *     drivers/leds/led-class.c:504
+	 *       fwnode_property_read_string(init_data->fwnode,
+	 *                                 "linux,default-trigger",
+	 *                                 &led_cdev->default_trigger);
+	 *   plain 的 "default-trigger" **内核里没有任何代码读**（旧的
+	 *   drivers/leds/leds-of.c 已在 6.18 删除），
+	 *   写成 plain 形式 → 属性被静默忽略 → 灯常亮不闪。
+	 *
+	 * ⚠ 同理，默认状态属性叫 **default-state**（不是 state）：
+	 *   drivers/leds/led-core.c:607  led_init_default_state_get()
+	 *     fwnode_property_read_string(fwnode, "default-state", &state)
+	 *   写 "state" 同样无人读取。
 	 */
 	leds {
 		compatible = "gpio-leds";
@@ -180,8 +215,8 @@
 		run_led {
 			label = "run";
 			gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
-			default-trigger = "heartbeat";
-			state = "on";
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
 		};
 	};
 
@@ -192,22 +227,10 @@
 	 * GPIOA_1  = PCIE_PEWAKE    4.7k 上拉 A_3V3(R89) + 0Ω(R91) → CN2-32
 	 * GPIOC_7  = PCIE_CLKREQ_N  4.7k 下拉 GND(R90)  + 0Ω(R93) → CN2-28，低有效
 	 * GPIOA_2  = FUSB340 SEL    R86(0Ω) 到 U28.6，R85/R87 4.7k 下拉 → 默认 USB3.0
+	 *
+	 * ⚠⚠ FUSB340_SEL 的 hog **不能**放在根节点（见文件末尾 &gpio 段）。
+	 *   下面只留注释说明，实体节点见 &gpio { fusb340-sel-hog { ... } }。
 	 */
-	fusb340_hog {
-		gpio-hog-controller-gpios =
-			<&gpio GPIOA_2 GPIO_ACTIVE_HIGH>;
-		/* ⚠ 不写 output-low / output-high —— **本脚是硬件 strap，SoC 不许驱动**。
-		 *   板上 SEL 预留了上拉/下拉电阻位，靠**选贴哪颗**决定电平：
-		 *       贴下拉 → SEL=0 → USB3.0（默认）
-		 *       贴上拉 → SEL=1 → PCIe
-		 *   U-Boot 在 boot 前 `gpio read` 这个脚，据此选 dtb
-		 *   （见 boot/boot-meson64.cmd 注入块）。
-		 *   如果这里写了 output-* ，SoC 会强驱该脚，把 strap 电平盖掉 —— 读出来
-		 *   永远是 SoC 自己的输出值，切换逻辑直接失效。
-		 *   不写 output-* 时 gpio-hog 就是 **input** hog，只占位不驱动。
-		 */
-		line-name = "FUSB340_SEL";
-	};
 
 	/* ================================================================
 	 * 红外接收 —— U38 IRM-V838M3-C/TR1 → GPIOAO_5 (AO 域)
@@ -218,7 +241,7 @@
 	 * ⚠ 本板遥控器键值表未知，暂用 Linux 自带 rc-khadas。
 	 *   若遥控器型号不同，需换对应 rc-map-name 或自定义 keymap。
 	 */
-	ir_receiver {
+	ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_LOW>;
 	};
@@ -266,7 +289,7 @@
 	};
 
 	/* ================================================================
-	 * SHT40 —— 两颗同地址 0x44，分挂不同 I2C 控制器
+	 * SHT40 (U42) —— 温湿度传感器，地址 0x44
 	 * ================================================================
 	 * U42 @ TOUCH_I2C (GPIOA_14/A15, EE 域, A_3V3 供电)
 	 * U45 @ I2C_AO_S0 (AO 域, VDDIO_AO18 1.8V 供电)
@@ -407,8 +430,8 @@
  * 【三个可选方案】
  *
  *   方案 A（推荐，最稳）：**两个DTB，开机时选**
- *     编译 meson-althaea-usb3.dtb 与 meson-althaea-pcie.dtb
- *     切换时改 bootargs / extlinux.conf 里的 fdt，重启生效
+ *     编译 amlogic/meson-halo-a311d.dtb 与 amlogic/meson-halo-a311d-pcie.dtb
+ *     切换时改 U-Boot 的 fdtfile（**不是 extlinux**，见 docs/冷切换使用说明.md），重启生效
  *     → 彻底规避 PHY 归属问题，无热插拔风险
  *
  *   方案 B：DTB 里 pcie 与 usb **同时 status="okay"**
@@ -425,11 +448,14 @@
  * 【当前 DTS 采用】
  *   默认只开USB3.0（&usb status="okay"），&pcie 保持 disabled，
  *   与用户要求"默认 LOW 使能 USB3.0"一致。
- *   GPIOA_2 已用 gpio-hog 导出（默认 LOW），可在sysfs 读写，
- *   为方案 C 预留可能，但**不保证运行期切换一定成功**。
+ *   GPIOA_2 用 gpio-hog 占位（&gpio 下的 fusb340-sel-hog，**input** hog，
+ *   line-name="FUSB340_SEL"），只占位不驱动 strap。
+ *   ⚠ input hog 会把该线标记为内核 REQUESTED → userspace **不能**
+ *     再 export 读写它（不能 echo）。
+ *   → 切换 PCIe 请改 DT 后重编（方案 A），或走方案 C（unbind/bind）。
  *
  *   切换 PCIe 需改 DT 后重编：
- *     &pcie  { status = "okay"; reset-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_LOW>; }
+ *     &pcie  { status = "okay"; reset-gpios = <&gpio GPIOA_0 GPIO_ACTIVE_LOW>; }
  *     &usb   { status = "disabled"; }
  *     并把 FUSB340 SEL 的默认电平改为 HIGH（或固件启动时拉高）
  */
@@ -478,9 +504,22 @@
 	num-cs = <1>;
 	cs-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_LOW>;	/* SPI_B_SS0 = GPIOH_6 */
 
-	max-frequency = <24000000>;	/* 小屏 24MHz 足够，保守取值 */
-
-	/* 屏初始化序列通常在屏驱动中，不在 DTS */
+	/* ⚠⚠ 这里**不能**写 max-frequency —— 内核根本不读它！
+	 *   SPI 子系统只读**从设备**节点上的 `spi-max-frequency`
+	 *   （drivers/spi/spi.c:2456  of_property_read_u32(nc, "spi-max-frequency", ...)），
+	 *   控制器节点上的 max-frequency 没有任何驱动消费。
+	 *   之前写的 `max-frequency = <24000000>`（想限制到 24MHz）**从未生效**。
+	 *
+	 *   实际限频由驱动决定：drivers/spi/spi-meson-spicc.c
+	 *     meson_spicc_g12a_data.max_speed_hz = 166666666   (166 MHz)
+	 *   → 屏在 SPI 总线上最高可跑到 166MHz。
+	 *
+	 *   本板 SPI_B 上接的是**裸屏**（无 Linux 驱动、无从设备节点，
+	 *   见下方「屏控制 GPIO 说明」），没有地方挂 spi-max-frequency。
+	 *   要限制到 24MHz，需要给屏写一个 spi 从设备节点并在其中声明
+	 *   spi-max-frequency = <24000000>；等屏驱动到位时再补。
+	 *
+	 *   屏初始化序列通常在屏驱动中，不在 DTS */
 };
 
 /* 屏控制 GPIO 说明（无对应 Linux 驱动消费，故不单独声明节点）
@@ -491,7 +530,78 @@
  */
 
 /* ==================================================================
- * I2C —— 两颗 SHT40
+ * GPIO —— periphs bank（&gpio = meson-g12-common.dtsi 的 bank@40）
+ * ==================================================================
+ * GPIOA_2 = FUSB340 SEL strap
+ *
+ * ⚠⚠ 这里放 gpio-hog，**必须**是 gpio-controller 的**子节点**！
+ *   内核只在自己的 gpio controller 节点下扫 hog：
+ *     drivers/gpio/gpiolib-of.c: of_gpiochip_scan_gpios()
+ *       for_each_available_child_of_node_scoped(dev_of_node(&chip->gpiodev->dev), np) {
+ *               if (!of_property_read_bool(np, "gpio-hog"))
+ *                       continue;
+ *               ret = of_gpiochip_add_hog(chip, np);
+ *   → 挂在根节点（或别的节点）下，**内核根本不会去看它**。
+ *
+ * ⚠⚠ 之前写的 `gpio-hog-controller-gpios` 这个属性**上游不存在**，
+ *   正确的是三个必需属性：
+ *     gpio-hog  (bool)  —— 声明"我是一个 hog"
+ *     gpios     (u32[]) —— 要占位的 GPIO
+ *     input / output-low / output-high —— **三选一，必须显式写**
+ *
+ * ⚠⚠ 状态属性必须显式写一个，否则整个 hog 被内核丢弃：
+ *   drivers/gpio/gpiolib-of.c: of_parse_own_gpio()
+ *     if (of_property_read_bool(np, "input"))
+ *             *dflags |= GPIOD_IN;
+ *     else if (of_property_read_bool(np, "output-low"))
+ *             *dflags |= GPIOD_OUT_LOW;
+ *     else if (of_property_read_bool(np, "output-high"))
+ *             *dflags |= GPIOD_OUT_HIGH;
+ *     else {
+ *             pr_warn("GPIO line %d (%pOFn): no hogging state specified, bailing out\n", ...);
+ *             return ERR_PTR(-EINVAL);
+ *     }
+ *   → "不写 output-* 就自动变成 input"是**错的**：不写状态 = 报
+ *     warning 并**跳过该 hog**，不是变成 input hog。
+ *
+ * 【为什么必须用 input，不能用 output-low】
+ *   板上 SEL 预留了上拉/下拉电阻位，靠**选贴哪颗**决定电平：
+ *       贴下拉(R85) → SEL=0 → USB3.0（默认）
+ *       贴上拉(R87) → SEL=1 → PCIe
+ *   U-Boot 在 boot 前 `gpio read` 这个脚，据此选 dtb
+ *   （见 boot/boot-meson64.cmd 注入块）。
+ *   若这里写 output-*，SoC 会强驱该脚把 strap 电平盖掉 ——
+ *   读出来永远是 SoC 自己的输出值，切换逻辑直接失效。
+ *
+ * 【input hog 的副作用（重要）】
+ *   gpiod_hog() 内部走 gpiochip_request_own_desc()，该线被内核标记为
+ *   REQUESTED → **userspace 不能再 export 这条线**
+ *   → 运行期无法用 echo /sys/class/gpio/... 读写它。
+ *   （旧注释说的"运行期可 echo 读写"是错的。）
+ *   要在运行期改 SEL，只能靠方案 C（unbind/bind 控制器）或干脆重编 DTB。
+ */
+&gpio {
+	/* ⚠⚠ 节点名**不要**加 label！
+	 *   写成 `fusb340-sel-hog: fusb340-sel-hog {` 会编译失败：
+	 *     Error: meson-halo-a311d.dts:584.17-18 syntax error
+	 *   原因：cpp 会把 label 里的 '-' 当成减号，展开成
+	 *     `fusb340 - sel - hog: fusb340 - sel - hog {`
+	 *   dtc 先读到 'fusb340'，期待 ':' 却看到 '-' → 语法错误。
+	 *   （节点名本身带 '-' 没问题，dtc 会重新拼接；
+	 *     但 'label: node' 形式下 label 里的 '-' 会被 cpp 拆开。）
+	 *   上游 147 处 gpio-hog 用例**没有一个带 label**，本处照办。
+	 *   可读名字放 line-name。
+	 */
+	fusb340-sel-hog {
+		gpio-hog;
+		gpios = <GPIOA_2 GPIO_ACTIVE_HIGH>;
+		input;
+		line-name = "FUSB340_SEL";
+	};
+};
+
+/* ==================================================================
+ * I2C —— SHT40 温湿度
  * ==================================================================
  * U42 @ I2C3 (GPIOA_14=SDA / GPIOA_15=SCL, EE 域, A_3V3 供电)
  *      规格书复用名 I2C_EE_M3_SDA / I2C_EE_M3_SCL
@@ -520,22 +630,33 @@
 	};
 };
 
-/* U45 SHT40 —— I2C_AO (AO 域) */
+/* ==================================================================
+ * I2C_AO —— AO 域 I2C 控制器（保留控制器，无挂载器件）
+ * ==================================================================
+ * ⚠ 这里**只保留控制器本身，不挂任何设备节点**，原因如下（依据网表
+ *   netlist-dump/nl_parsed_full.json，495 元件 / 393 网络）：
+ *
+ * 1) U45 (SHT40) 已从 DTS 移除 —— 它的 I2C 线在网表上是**单端悬空**：
+ *      I2C_AO_S0_SCL : 连接点仅 U45.2（1 个）
+ *      I2C_AO_S0_SDA : 连接点仅 U45.1（1 个）
+ *    即既没接到 SoC 的 AO I2C 引脚，也没有上拉电阻（对比 U42 所在的
+ *    TOUCH_I2C_SCL/SDA：直连 CN2-64/62 → A311D GPIOA_15/A14）。
+ *    → 这颗器件在 I2C 上根本收不到 ACK，驱动永远探测不到它，
+ *      写节点只是误导。（U45 供电 VDDIO_AO18 正常，仅信号线悬空）
+ *
+ * 2) rtc@51 (hym8563) 已从 DTS 移除 —— 本板 495 个元件里
+ *    **没有任何 RTC 芯片**（无 8563/3231/3028/DS1307 等）。
+ *    该节点是从厂商 BSP (docs/vendor_dts/pro-a311d.dts:380) 抄来的，
+ *    本板无对应硬件 → 留着只会让内核去 probe 一条不存在的总线。
+ *
+ * 保留控制器本身的意义：AO 域 I2C 引出到 CN3-69/71
+ * （网络 I2C_AO_M0_SDA/SCL，经 Q13/Q14 模拟开关；两者 add_bom=no
+ * 即不贴），后续若贴装外设可直接用这条控制器。
+ */
 &i2c_AO {
 	status = "okay";
 	pinctrl-0 = <&i2c_ao_sck_pins>, <&i2c_ao_sda_pins>;
 	pinctrl-names = "default";
-
-	rtc: rtc@51 {
-		compatible = "haoyu,hym8563";
-		reg = <0x51>;
-		#clock-cells = <0>;
-	};
-
-	sht40_ao: sht40@44 {
-		compatible = "sensirion,sht4x";
-		reg = <0x44>;
-	};
 };
 
 /* ==================================================================
@@ -699,17 +820,22 @@
  *   只能改变物理通路，SoC 内部仍按 dtb 写死的一侧枚举 → 两侧不一致失效。
  *
  * 【切换方案】**冷切换（重启选 DTB），最稳**
- *   方式一（推荐）：编译两个 DTB，开机改 extlinux.conf 的 fdt 行
- *       LABEL Althea-USB3 : FDT /boot/meson-althaea-usb3.dtb   ← &usb  okay
- *       LABEL Althea-PCIe : FDT /boot/meson-althaea-pcie.dtb   ← &pcie okay
+ *   方式一（推荐）：编译两个 DTB，由 U-Boot 按 GPIOA_2 电平选 fdtfile
+ *       amlogic/meson-halo-a311d.dtb        ← &usb  okay
+ *       amlogic/meson-halo-a311d-pcie.dtb   ← &pcie okay
+ *       ⚠ 本板**不是 extlinux**（SRC_EXTLINUX 未开），切换靠
+ *         userpatches/bootscripts/boot-meson64.cmd 里的注入块
+ *         （gpio read → setenv fdtfile），详见 docs/冷切换使用说明.md
  *   方式二：单 DTB + U-Boot 脚本读 GPIOA_2 电平动态注入
  *       if gpio get 2; then fdt set /pcie@fc000000 status "okay";
  *                            fdt set /usb@fc00000 status "disabled";
  *                       else   fdt set /usb@fc00000 status "okay";
  *                            fdt set /pcie@fc000000 status "disabled"; fi
  *
- *   GPIOA_2 已用 gpio-hog 导出（line-name="FUSB340_SEL", output-low），
- *   运行期可 echo 读写，但**不保证切换成功**（PHY 归属问题）。
+ *   GPIOA_2 用 gpio-hog 占位（&gpio 下的 fusb340-sel-hog，**input** hog，
+ *   line-name="FUSB340_SEL"），只占位不驱动 strap。
+ *   ⚠ input hog 会把该线标记为内核 REQUESTED → userspace **不能**
+ *     再 export 读写它（不能 echo）。
  *
  * 【当前配置】默认只开 USB3.0
  */
