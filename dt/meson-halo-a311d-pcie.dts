@@ -205,9 +205,13 @@
 	fusb340_hog {
 		gpio-hog-controller-gpios =
 			<&gpio GPIOA_2 GPIO_ACTIVE_HIGH>;
-		output-low;      /* ⚠ 本变体为 PCIe 模式，SEL 需 HIGH！
-		                 *   硬件 R85/R87 4.7k 下拉 → 实际仍为 LOW。
-		                 *   必须由 U-Boot 在 boot 前拉高 GPIOA_2，或改硬件为上拉。
+		output-high;     /* ✅ 本变体为 PCIe 模式 → SEL 必须 HIGH。
+		                 *
+		                 * ⚠ 原来是 output-low（带 TODO 说要 U-Boot 拉高），
+		                 *   但 gpio-hog 在内核启动时**会重新覆盖** u-boot 设的电平：
+		                 *   u-boot 拉高 → 内核 hog output-low 又拉回去 → PCIe 不通。
+		                 *   所以这里必须与 boot.cmd 的选择保持一致，改成 output-high。
+		                 *   （usb3 变体保持 output-low，两者互补。）
 		                 */
 		line-name = "FUSB340_SEL";
 	};

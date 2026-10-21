@@ -1,16 +1,45 @@
-echo "MAIN_V0.3 mode select by FUSB340 SEL"
+# halo-a311d USB3.0 / PCIe mode select (U-Boot hush)
+#
+# ⚠ 这份是**参考副本**：真正生效的逻辑在 boot/boot-meson64.cmd 里
+#   （部署成 userpatches/bootscripts/boot-meson64.cmd，由 armbian 编进 boot.scr）。
+#   本文件仍会被放进镜像的 /boot，方便串口上手改，但 u-boot **不会主动 source 它**。
+#
+# ✅ 2026-10-21 修正了三处硬错误:
+#   1. 变量写错: setenv fdt → 应为 **fdtfile**
+#      （armbian 的 boot.cmd 用 `load ... dtb/${fdtfile}` 取 dtb）
+#   2. 路径写错: /boot/meson-halo-a311d.dtb → 应为 **amlogic/meson-halo-a311d.dtb**
+#      （相对 boot/dtb/，且 armbian 的 BOOT_FDT_FILE 就是这个形式）
+#   3. 思路写错: `gpio read althea_sel FUSB340_SEL` —— SEL 是 **SoC 驱动的输出**，
+#      板上 R85/R87 4.7k 下拉，没有可读的拨码/strap，读它永远是 LOW。
+#      模式是「选择」不是「侦测」→ 改为从 althea_mode 取值，并**驱动** GPIOA_2。
+#
+# 用法（在 /boot/armbianEnv.txt 里写，重启生效）:
+#     althea_mode=pcie      # 或 usb3（默认）
 
-setenv althea_fdt_usb3 /boot/meson-halo-a311d.dtb
-setenv althea_fdt_pcie /boot/meson-halo-a311d-pcie.dtb
+echo "MAIN_V0.3 mode select (althea_mode=${althea_mode})"
 
-gpio read althea_sel FUSB340_SEL
+setenv althea_sel_pin "GPIOA_2"
+setenv althea_fdt_usb3 "amlogic/meson-halo-a311d.dtb"
+setenv althea_fdt_pcie "amlogic/meson-halo-a311d-pcie.dtb"
 
-if test "${althea_sel}" = "1"; then
-    echo "SEL=HIGH -> PCIe"
-    setenv fdt ${althea_fdt_pcie}
+if test -z "${althea_mode}"; then setenv althea_mode "usb3"; fi
+
+if test "${althea_mode}" = "pcie"; then
+    echo "mode=pcie -> SEL HIGH + PCIe dtb"
+    setenv fdtfile ${althea_fdt_pcie}
+    if gpio set ${althea_sel_pin}; then
+        echo "GPIOA_2 -> HIGH"
+    else
+        echo "WARNING: gpio set ${althea_sel_pin} failed (CONFIG_CMD_GPIO?)"
+    fi
 else
-    echo "SEL=LOW  -> USB3.0"
-    setenv fdt ${althea_fdt_usb3}
+    echo "mode=usb3 -> SEL LOW + USB3.0 dtb"
+    setenv fdtfile ${althea_fdt_usb3}
+    if gpio clear ${althea_sel_pin}; then
+        echo "GPIOA_2 -> LOW"
+    else
+        echo "WARNING: gpio clear ${althea_sel_pin} failed (CONFIG_CMD_GPIO?)"
+    fi
 fi
 
-echo "DT = ${fdt}"
+echo "fdtfile = ${fdtfile}"
