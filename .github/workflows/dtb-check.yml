@@ -307,6 +307,40 @@ jobs:
           done
           exit $fail
 
+      - name: Verify GPIO hogs are in the form the kernel accepts
+        # ⚠ 这道检查对应一个真实的、**内核完全不认**的 bug。
+        #
+        #   板级 DTS 曾经这样写 FUSB340 SEL 的 hog：
+        #       fusb340_hog {                              ← 挂在根节点下
+        #           gpio-hog-controller-gpios = <...>;    ← 这个属性上游不存在
+        #           line-name = "FUSB340_SEL";
+        #       };
+        #
+        #   三处都错，且**每一处都静默失效**：
+        #     1. `gpio-hog-controller-gpios` 在 torvalds/linux 全树 0 命中，
+        #        上游真正用的是 `gpios`
+        #     2. 挂在根节点下 —— 内核 of_gpiochip_scan_gpios() 只遍历
+        #        gpio controller 自己的子节点，根节点下的它根本不看
+        #     3. 没有 `gpio-hog` 这个 bool 属性 → 内核不认为这是个 hog
+        #   → 编译通过、CI 全绿、产物是错的。
+        #
+        #   还有第 4 处更隐蔽：of_parse_own_gpio() 要求
+        #   input / output-low / output-high 三选一**必须显式写**，
+        #   否则内核打印 "no hogging state specified, bailing out" 并
+        #   **跳过该 hog**（不是"自动变成 input"）。
+        run: |
+          set -eu
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::gpio hog check $f.dtb"
+            if ! python3 "$GITHUB_WORKSPACE/scripts/check-gpio-hogs.py" \
+                 "/tmp/$f.dtb"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
       - name: Upload DTBs
         uses: actions/upload-artifact@v5
         with:
