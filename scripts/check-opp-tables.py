@@ -1,41 +1,51 @@
 #!/usr/bin/env python3
 """
-校验编译出的 DTB 里的 CPU OPP 表与上游 meson-g12b-a311d.dtsi 完全一致。
+校验编译出的 DTB 里，每个 CPU 实际使用的 OPP 表与上游定义一致。
 
 背景
 ----
 本仓库的板级 DTS 曾经同时 include 了 meson-g12b-a311d.dtsi 和
 meson-g12b-s922x.dtsi。两者都在根节点下定义**同名**节点 opp-table-0 /
 opp-table-1（label 也同名：cpu_opp_table_0 / cpub_opp_table_1），
-但电压值不同。
+但电压值不同：
+
+    a311d: 1.0 GHz = 761000 uV
+    s922x: 1.0 GHz = 731000 uV
 
 dtc 对同名节点是**合并**而非报错（livetree.c: merge_nodes()）：
 后定义的属性覆盖先定义的，同名子节点取并集。
 结果是 CPU 拿到一张「A311D + S922X 混搭」的频率-电压表，
 还混进了 A311D 不支持的频率点（1.896 / 1.992 GHz）。
 
-dtc 自己不报错（合并后树里已无重名节点，duplicate_node_names / duplicate_label
-两道 ERROR 级检查都不触发），所以只靠 dtc 退出码的 CI 永远看不见这个问题。
-本脚本就是那道缺失的护栏。
+dtc 自己不报错：合并后树里已无重名节点，duplicate_node_names /
+duplicate_label 两道 ERROR 级检查都不触发，**退出码是 0，CI 全绿**。
+所以只能显式比对产物。
+
+校验的不变式
+------------
+板级 DTS 里每个 &cpuN 声明的 operating-points-v2 = <&LABEL>，
+对应上游 dtsi 中 label LABEL 所指的表。
+编译出的 DTB 里，cpuN 实际引用的那张表，其内容必须与上游 LABEL 表**逐项相同**。
+
+这个不变式同时能抓住两类错误：
+  1. 多个 SoC dtsi 被合并 → 表内容被污染
+  2. CPU 指到了错误的表（比如 A53 误指大核表）→ 表内容对不上
 
 用法
 ----
-    check-opp-tables.py <编译出的 .dtb> <meson-g12b-a311d.dtsi>
-
-    要校验哪张表不用指定：脚本顺着 CPU 节点的 operating-points-v2
-    phandle 反查 CPU **实际**在用的表（板级 DTS 可以给表改名），
-    再与上游 dtsi 里的 cpu_opp_table_0 / cpub_opp_table_1 逐项比对。
+    check-opp-tables.py <编译出的 .dtb> <板级 .dts> <上游 meson-g12b-a311d.dtsi>
 
 退出码
 ------
     0  一致
-    1  不一致（并打印差异）
-    2  用法错误 / 文件缺失
+    1  不一致（打印差异）
+    2  用法错误 / 文件缺失 / 无法解析
 """
 
 import re
 import struct
 import sys
+
 
 # --------------------------------------------------------------------------
 # DTB（扁平设备树二进制）解析
@@ -105,11 +115,11 @@ def dtb_opp_table(props, kids, table):
     return out
 
 
-def cpu_opp_tables(props, kids):
-    """从 CPU 节点反查它实际引用的 OPP 表 → {表节点路径: [cpu 节点名]}
+def cpu_table_ref(props, kids, cpu):
+    """某个 cpu 节点通过 operating-points-v2 指向的表节点路径
 
-    不能直接假设表叫 /opp-table-0 —— 板级 DTS 可以把 CPU 指向任意名字的表。
-    这里顺着 operating-points-v2 的 phandle 走，得到 CPU **真正**在用的表。
+    板级 dts 里用 &cpu0 这样的 label 引用，DTB 里的节点名却是 cpu@0。
+    这里按 CPU 编号匹配：cpu0 → cpu@0、cpu100 → cpu@100。
     """
     ph2path = {}
     for path, plist in props.items():
@@ -117,21 +127,16 @@ def cpu_opp_tables(props, kids):
             if name == "phandle":
                 ph2path[int.from_bytes(val, "big")] = path
 
-    used = {}
-    for cpu in kids.get("/cpus", []):
-        if not cpu.startswith("cpu@"):
-            continue
-        for name, val in props.get(f"/cpus/{cpu}", []):
-            if name != "operating-points-v2" or len(val) != 4:
-                continue
-            target = ph2path.get(int.from_bytes(val, "big"))
-            if target:
-                used.setdefault(target, []).append(cpu)
-    return used
+    num = cpu[3:]  # 去掉 "cpu" 前缀
+    for cand in (f"cpu@{num}", cpu):
+        for name, val in props.get(f"/cpus/{cand}", []):
+            if name == "operating-points-v2" and len(val) == 4:
+                return ph2path.get(int.from_bytes(val, "big"))
+    return None
 
 
 # --------------------------------------------------------------------------
-# 上游 dtsi 文本解析
+# 文本解析：板级 dts 与上游 dtsi
 # --------------------------------------------------------------------------
 # opp-hz 既可能写成 <1000000000>，也可能写成 /bits/ 64 <1000000000>
 RE_HZ = re.compile(r"opp-hz\s*=\s*(?:/bits/\s*\d+\s*)?<\s*(\d+)\s*>")
@@ -155,7 +160,7 @@ def _extract_block(text, start):
 
 
 def dtsi_opp_table(text, label):
-    """从 dtsi 文本提取某张 OPP 表 → (节点名, {频率Hz: 电压µV})
+    """从 dtsi 文本提取 label 所指的 OPP 表 → (节点名, {频率Hz: 电压µV})
 
     上游写法形如：
         cpu_opp_table_0: opp-table-0 { ... }
@@ -163,7 +168,7 @@ def dtsi_opp_table(text, label):
     """
     m = re.search(re.escape(label) + r"\s*:\s*([A-Za-z0-9_-]+)\s*\{", text)
     if not m:
-        raise KeyError(f"dtsi 里找不到 label {label}")
+        raise KeyError(f"找不到 label {label}")
     node_name = m.group(1)
     block = _extract_block(text, m.end() - 1)
 
@@ -177,6 +182,25 @@ def dtsi_opp_table(text, label):
     return node_name, dict(sorted(out.items()))
 
 
+def board_cpu_opp_refs(text):
+    """从板级 dts 解析出每个 &cpuN 声明的 OPP 表 label → {cpu: label}
+
+    形如：
+        &cpu0 {
+            ...
+            operating-points-v2 = <&cpu_opp_table_0>;
+            ...
+        };
+    """
+    refs = {}
+    for m in re.finditer(r"&(cpu\d+)\s*\{", text):
+        cpu = m.group(1)
+        block = _extract_block(text, m.end() - 1)
+        for om in re.finditer(r"operating-points-v2\s*=\s*<&([A-Za-z0-9_]+)>", block):
+            refs[cpu] = om.group(1)
+    return refs
+
+
 # --------------------------------------------------------------------------
 # 对比与报告
 # --------------------------------------------------------------------------
@@ -188,49 +212,36 @@ def fmt_table(tbl):
     )
 
 
-def compare(name, expected, actual):
-    """返回 (是否一致, 报告文本)"""
-    if expected == actual:
-        return True, f"  ✅ {name}: {len(actual)} 项，与上游一致"
-
-    lines = [f"  ❌ {name}: 与上游不一致（上游 {len(expected)} 项 / DTB {len(actual)} 项）"]
-
+def diff_tables(expected, actual):
+    """返回描述差异的若干行"""
+    lines = []
     only_exp = sorted(set(expected) - set(actual))
     only_act = sorted(set(actual) - set(expected))
     if only_exp:
-        lines.append(f"    DTB 缺少（上游独有）: "
+        lines.append("    缺少（上游有）: "
                      + ", ".join(f"{hz / 1e9:g}GHz@{expected[hz]}uV" for hz in only_exp))
     if only_act:
-        lines.append(f"    DTB 多出（上游没有）: "
+        lines.append("    多出（上游没有）: "
                      + ", ".join(f"{hz / 1e9:g}GHz@{actual[hz]}uV" for hz in only_act))
     diff = [hz for hz in sorted(set(expected) & set(actual)) if expected[hz] != actual[hz]]
     if diff:
         lines.append("    电压不同: " + ", ".join(
             f"{hz / 1e9:g}GHz(上游 {expected[hz]}uV / DTB {actual[hz]}uV)" for hz in diff))
-
-    lines.append("    上游: " + fmt_table(expected).replace("\n", "\n    "))
-    lines.append("    DTB : " + fmt_table(actual).replace("\n", "\n    "))
-    return False, "\n".join(lines)
+    return lines
 
 
 def main(argv):
-    if len(argv) < 3:
+    if len(argv) != 4:
         print(__doc__)
         return 2
-    dtb_path, dtsi_path = argv[1], argv[2]
-    if len(argv) > 3:
-        print("::error::本脚本不需要表名参数（表由 CPU 的 operating-points-v2 反查得出）")
-        return 2
+    dtb_path, board_dts, upstream = argv[1], argv[2], argv[3]
 
     try:
         dtb = open(dtb_path, "rb").read()
+        board = open(board_dts, encoding="utf-8", errors="replace").read()
+        up = open(upstream, encoding="utf-8", errors="replace").read()
     except OSError as e:
-        print(f"::error::读不到 DTB {dtb_path}: {e}")
-        return 2
-    try:
-        dtsi = open(dtsi_path, encoding="utf-8", errors="replace").read()
-    except OSError as e:
-        print(f"::error::读不到 dtsi {dtsi_path}: {e}")
+        print(f"::error::读文件失败: {e}")
         return 2
 
     try:
@@ -240,66 +251,62 @@ def main(argv):
         return 2
 
     print(f"DTB  : {dtb_path}")
-    print(f"参考 : {dtsi_path}")
+    print(f"板级 : {board_dts}")
+    print(f"参考 : {upstream}")
 
-    # CPU 实际引用的表（顺着 operating-points-v2 的 phandle 反查）
-    used = cpu_opp_tables(props, kids)
-    if not used:
-        print("::error::DTB 里找不到 CPU 的 operating-points-v2 引用，无法校验 OPP 表")
+    # 板级 DTS 声明的 CPU → OPP 表 label
+    try:
+        refs = board_cpu_opp_refs(board)
+    except ValueError as e:
+        print(f"::error::解析板级 dts 失败: {e}")
         return 2
-    print("CPU 引用的 OPP 表: " + ", ".join(
-        f"{t} ({len(c)} 个 cpu: {', '.join(sorted(c))})" for t, c in sorted(used.items())))
-
-    # 上游 dtsi 里按 label 找表：cpu_opp_table_0 / cpub_opp_table_1
-    upstream_tables = {}
-    for label in ("cpu_opp_table_0", "cpub_opp_table_1"):
-        try:
-            node_name, table = dtsi_opp_table(dtsi, label)
-        except (KeyError, ValueError) as e:
-            print(f"::error::解析上游 {label} 失败: {e}")
-            return 2
-        upstream_tables[label] = (node_name, table)
+    if not refs:
+        print("::error::板级 dts 里找不到任何 operating-points-v2 声明，无法校验")
+        return 2
 
     ok = True
-    # 上游两张表分别对应 DTB 里的哪张：
-    #   DTB 的表名可能与上游不同（板级可改名），所以先按表名对上，
-    #   对不上再按内容匹配。
-    unmatched = list(used.items())
-    for label, (up_node, expected) in upstream_tables.items():
-        name_hits = [t for t in unmatched if t[0].rsplit("/", 1)[-1] == up_node]
-        content_hits = [t for t in unmatched
-                        if dtb_opp_table(props, kids, t[0].lstrip("/")) == expected]
-        candidates = name_hits or content_hits
-        if not candidates:
-            print(f"  ❌ {label}: DTB 中找不到与上游对应的表")
-            print("    上游: " + fmt_table(expected).replace("\n", "\n    "))
+    up_cache = {}  # label → (节点名, 表)
+
+    for cpu, label in sorted(refs.items(), key=lambda kv: int(kv[0][3:])):
+        if label not in up_cache:
+            try:
+                up_cache[label] = dtsi_opp_table(up, label)
+            except (KeyError, ValueError) as e:
+                print(f"::error::解析上游 {label} 失败: {e}")
+                return 2
+        up_node, expected = up_cache[label]
+
+        table = cpu_table_ref(props, kids, cpu)
+        if table is None:
+            print(f"  ❌ {cpu}: DTB 里没有 operating-points-v2 引用")
             ok = False
             continue
-        table, cpus = candidates[0]
-        unmatched.remove((table, cpus))
-        actual = dtb_opp_table(props, kids, table.lstrip("/"))
-        same, report = compare(f"{label} → {table}", expected, actual)
-        print(report)
-        if not same:
-            ok = False
 
-    # DTB 里 CPU 引用了、但没对上任何一张上游表的
-    for table, cpus in unmatched:
         actual = dtb_opp_table(props, kids, table.lstrip("/"))
-        print(f"  ❌ {table}: CPU（{', '.join(sorted(cpus))}）在用这张表，"
-              f"但它与上游任何一张 OPP 表都不一致")
-        print("    DTB : " + fmt_table(actual).replace("\n", "\n    "))
+        if actual == expected:
+            print(f"  ✅ {cpu} → {table}（{label} = {up_node}, {len(actual)} 项）与上游一致")
+            continue
+
+        print(f"  ❌ {cpu} → {table}（声明应为 {label} = {up_node}）与上游不一致")
+        for line in diff_tables(expected, actual):
+            print(line)
+        print(f"    上游 {up_node}:")
+        print(fmt_table(expected).replace("\n", "\n    "))
+        print(f"    DTB  {table}:")
+        print(fmt_table(actual).replace("\n", "\n    "))
         ok = False
 
     if not ok:
         print()
-        print("::error::CPU OPP 表与上游 A311D 定义不一致。")
-        print("::error::常见原因：板级 DTS 同时 include 了多份 SoC 的 dtsi")
-        print("::error::（如 meson-g12b-s922x.dtsi），dtc 会把它们**合并**成混搭表。")
+        print("::error::CPU 使用的 OPP 表与上游 A311D 定义不一致。")
+        print("::error::常见原因：")
+        print("::error::  a) 板级 DTS 同时 include 了多份 SoC 的 dtsi")
+        print("::error::     （如 meson-g12b-s922x.dtsi）→ dtc 把同名 opp-table 合并成混搭表")
+        print("::error::  b) CPU 的 operating-points-v2 指到了错误的表")
         print("::error::本板是 A311D，只应 include meson-g12b-a311d.dtsi 一份。")
     else:
         print()
-        print("OK  CPU OPP 表与上游 A311D 定义一致")
+        print(f"OK  {len(refs)} 个 CPU 的 OPP 表均与上游 A311D 定义一致")
     return 0 if ok else 1
 
 
