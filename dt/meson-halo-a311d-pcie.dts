@@ -64,7 +64,13 @@
 	aliases {
 		serial0 = &uart_AO;
 		ethernet0 = &ethmac;
-		rtc0 = &rtc;
+		/* ⚠ 本板**没有** RTC 芯片（网表 495 元件里查无 8563/3231/DS1307 等），
+		 *   原先指向厂商 hym8563 的 rtc@51 节点已删除。
+		 *   改指 SoC 内置的虚拟 RTC（vrtc: rtc@a8，compatible="amlogic,meson-vrtc"，
+		 *   驱动 drivers/rtc/rtc-meson-vrtc.c，上游 g12-common.dtsi 里默认 okay）。
+		 *   上游 VIM3 用 rtc0=&rtc(hym8563) + rtc1=&vrtc，本板只有 vrtc 一个。
+		 */
+		rtc0 = &vrtc;
 	};
 
 	chosen {

@@ -466,10 +466,24 @@ DTS 里写节点只会误导后来人。**已从两个变体的 DTS 中移除。
   后续若贴装外设可直接用这条控制器。
 - 该路经 Q13/Q14（MS3134 模拟开关，`add_bom=no` 即不贴），目前是断的。
 
-**另：RTC 也一并移除**
+**另：RTC 也一并移除，alias 改指 SoC 虚拟 RTC**
 - `rtc@51` (`haoyu,hym8563`) 节点已从 DTS 删除。
 - 依据：本板 495 个元件中**没有任何 RTC 芯片**（无 8563/3231/3028/DS1307 等）。
   该节点源自厂商 BSP（`docs/vendor_dts/pro-a311d.dts:380`），本板无对应硬件。
+- ⚠ **删节点时必须同步改 aliases**：原 `rtc0 = &rtc;` 引用的正是被删节点
+  自己定义的 label，删完就成了悬空引用 → dtc 报
+  `ERROR (path_references): /aliases: Reference to non-existent node or label "rtc"`。
+  现在改为指向 SoC 内置的虚拟 RTC：
+  ```dts
+  aliases {
+      rtc0 = &vrtc;   /* vrtc: rtc@a8, compatible="amlogic,meson-vrtc" */
+  };
+  ```
+  上游 VIM3 用 `rtc0=&rtc`(hym8563) + `rtc1=&vrtc`；本板只有 vrtc 一个，
+  故只用 rtc0。`vrtc` 定义在 `meson-g12-common.dtsi`，无 status 属性
+  → 默认 okay，驱动为 `drivers/rtc/rtc-meson-vrtc.c`。
+  → 这类错误已加入 CI 护栏：`scripts/check-dts-refs.py`（离线预检，
+     在 dtc 编译之前跑，快速失败）。
 
 - 原 `I2C_AO_M0_SDA/SCL`（CN3-69/71，经 Q13/Q14 MS3134）仍为**未使用**（Q13/Q14 `bom=no`），那条是通摄像头的，本次未用。
 
