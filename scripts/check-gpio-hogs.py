@@ -52,6 +52,7 @@
     2  用法错误 / 文件缺失 / 无法解析
 """
 
+import re
 import struct
 import sys
 
@@ -190,6 +191,21 @@ def main(argv):
                 "%s: hog 没有指定状态（input / output-low / output-high 三选一"
                 "必须显式写）→ 内核会打印 \"no hogging state specified, bailing "
                 "out\" 并**跳过该 hog**（不是自动变成 input）" % path)
+
+        # 5. 节点名必须以 -hog 结尾（上游 schema 约定）
+        #    Documentation/devicetree/bindings/pinctrl/amlogic,meson-pinctrl-common.yaml
+        #      patternProperties:
+        #        "^.+-hog(-[0-9]+)?$":
+        #          required: [gpio-hog]
+        #    → dt-schema 会报 "Unevaluated properties are not allowed
+        #      ('xxx' was unexpected)"。内核不查名字（只认 gpio-hog 属性），
+        #      但不符合上游约定，且 schema 校验会一直红。
+        nodename = path.rsplit("/", 1)[-1]
+        if not re.match(r"^.+-hog(-[0-9]+)?$", nodename):
+            problems.append(
+                "%s: hog 节点名 `%s` 不符合上游约定（应以 `-hog` 结尾，"
+                "如 `fusb340-sel-hog`）→ dt-schema 报 "
+                "\"Unevaluated properties are not allowed\"" % (path, nodename))
 
     print("检查 %s：%d 个 gpio-hog" % (argv[1], hogs))
     if problems:

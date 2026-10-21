@@ -229,7 +229,7 @@
 	 * GPIOA_2  = FUSB340 SEL    R86(0Ω) 到 U28.6，R85/R87 4.7k 下拉 → 默认 USB3.0
 	 *
 	 * ⚠⚠ FUSB340_SEL 的 hog **不能**放在根节点（见文件末尾 &gpio 段）。
-	 *   下面只留注释说明，实体节点见 &gpio { fusb340_sel_hog { ... } }。
+	 *   下面只留注释说明，实体节点见 &gpio { fusb340-sel-hog { ... } }。
 	 */
 
 	/* ================================================================
@@ -241,7 +241,7 @@
 	 * ⚠ 本板遥控器键值表未知，暂用 Linux 自带 rc-khadas。
 	 *   若遥控器型号不同，需换对应 rc-map-name 或自定义 keymap。
 	 */
-	ir_receiver {
+	ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_LOW>;
 	};
@@ -448,7 +448,7 @@
  * 【当前 DTS 采用】
  *   默认只开USB3.0（&usb status="okay"），&pcie 保持 disabled，
  *   与用户要求"默认 LOW 使能 USB3.0"一致。
- *   GPIOA_2 用 gpio-hog 占位（&gpio 下的 fusb340_sel_hog，**input** hog，
+ *   GPIOA_2 用 gpio-hog 占位（&gpio 下的 fusb340-sel-hog，**input** hog，
  *   line-name="FUSB340_SEL"），只占位不驱动 strap。
  *   ⚠ input hog 会把该线标记为内核 REQUESTED → userspace **不能**
  *     再 export 读写它（不能 echo）。
@@ -504,9 +504,22 @@
 	num-cs = <1>;
 	cs-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_LOW>;	/* SPI_B_SS0 = GPIOH_6 */
 
-	max-frequency = <24000000>;	/* 小屏 24MHz 足够，保守取值 */
-
-	/* 屏初始化序列通常在屏驱动中，不在 DTS */
+	/* ⚠⚠ 这里**不能**写 max-frequency —— 内核根本不读它！
+	 *   SPI 子系统只读**从设备**节点上的 `spi-max-frequency`
+	 *   （drivers/spi/spi.c:2456  of_property_read_u32(nc, "spi-max-frequency", ...)），
+	 *   控制器节点上的 max-frequency 没有任何驱动消费。
+	 *   之前写的 `max-frequency = <24000000>`（想限制到 24MHz）**从未生效**。
+	 *
+	 *   实际限频由驱动决定：drivers/spi/spi-meson-spicc.c
+	 *     meson_spicc_g12a_data.max_speed_hz = 166666666   (166 MHz)
+	 *   → 屏在 SPI 总线上最高可跑到 166MHz。
+	 *
+	 *   本板 SPI_B 上接的是**裸屏**（无 Linux 驱动、无从设备节点，
+	 *   见下方「屏控制 GPIO 说明」），没有地方挂 spi-max-frequency。
+	 *   要限制到 24MHz，需要给屏写一个 spi 从设备节点并在其中声明
+	 *   spi-max-frequency = <24000000>；等屏驱动到位时再补。
+	 *
+	 *   屏初始化序列通常在屏驱动中，不在 DTS */
 };
 
 /* 屏控制 GPIO 说明（无对应 Linux 驱动消费，故不单独声明节点）
@@ -568,7 +581,7 @@
  *   要在运行期改 SEL，只能靠方案 C（unbind/bind 控制器）或干脆重编 DTB。
  */
 &gpio {
-	fusb340_sel_hog: fusb340_sel_hog {
+	fusb340-sel-hog: fusb340-sel-hog {
 		gpio-hog;
 		gpios = <GPIOA_2 GPIO_ACTIVE_HIGH>;
 		input;
@@ -808,7 +821,7 @@
  *                       else   fdt set /usb@fc00000 status "okay";
  *                            fdt set /pcie@fc000000 status "disabled"; fi
  *
- *   GPIOA_2 用 gpio-hog 占位（&gpio 下的 fusb340_sel_hog，**input** hog，
+ *   GPIOA_2 用 gpio-hog 占位（&gpio 下的 fusb340-sel-hog，**input** hog，
  *   line-name="FUSB340_SEL"），只占位不驱动 strap。
  *   ⚠ input hog 会把该线标记为内核 REQUESTED → userspace **不能**
  *     再 export 读写它（不能 echo）。
