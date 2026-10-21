@@ -151,7 +151,14 @@ fi
 #   → gpio 全局编号 = 0 + 51 = **51**
 #
 # ⚠ 若硬件上发现「贴了上拉却读到 LOW」，先怀疑这个编号：改成 armbianEnv.txt
-#   althea_sel_num=66  （66 = 51 + EE_OFF，即 Linux 侧编号，对应 AO 先探测的排布）
+#   althea_sel_num=66
+#
+#   66 的来源（⚠ 不是 51+EE_OFF，EE_OFF=15 是 periphs 的 pin_base，
+#   与这里的 15 无关 —— 别把两个 15 混为一谈）：
+#     若 aobus bank 先 probe，gpio_base 就从 aobus 的 gpio_count=15 开始
+#     （gpio-uclass.c: gpio_renumber() 按 gpio_count 累加分配 base）
+#     → GPIOA_2 全局号 = 15 + 51 = 66
+#   即 66 对应「AO 先探测」的排布，51 对应「periphs 先探测」。
 if test -z "${althea_sel_num}"; then setenv althea_sel_num "51"; fi
 setenv althea_fdt_usb3 "amlogic/meson-halo-a311d.dtb"
 setenv althea_fdt_pcie "amlogic/meson-halo-a311d-pcie.dtb"

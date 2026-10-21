@@ -233,7 +233,14 @@ gpio read althea_sel 51
 **51 的推导**：periphs banks 顺序 `Z(0-15) H(16-24) BOOT(25-40) C(41-48) A(49-64) X(65-84)`
 （`pinctrl-meson-g12a.c:1205`，`num_pins=85`，`pin_base=EE_OFF=15`）→ GPIOA_2 偏移 `49+2=51`；
 `gpio_base` 按探测顺序累加，periphs 节点（`meson-g12-common.dtsi:271`）早于 aobus（`:1759`）
-→ base=0 → **51**。备选型 `66`（=51+EE_OFF，Linux 侧编号）。
+→ base=0 → **51**。备选型 `66`。
+
+> 备选型 66 的来源：**不是** `51 + EE_OFF`（`EE_OFF=15` 是 periphs 的 pin_base，
+> 与这里无关 —— 别把两个 15 混为一谈）。66 = `15 + 51`，
+> 那个 15 来自 **aobus bank 的 gpio_count**（`gpio-uclass.c` 的 `gpio_renumber()`
+> 按各 bank 的 gpio_count 累加分配 base）→ 66 对应「AO 先探测」的排布，
+> 51 对应「periphs 先探测」。上机若「贴了上拉却读到 LOW」，改
+> `/boot/armbianEnv.txt` 的 `althea_sel_num=66` 即可，不需重编。
 
 依赖 `CONFIG_CMD_GPIO` + `CONFIG_CMD_GPIO_READ`（已在 board conf 的
 `post_config_uboot_target__extra_configs_for_halo_a311d()` 里打开）。
