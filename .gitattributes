@@ -13,6 +13,13 @@ fip/*.py      text eol=lf
 *.sh     text eol=lf
 *.yml    text eol=lf
 
+# u-boot 引导脚本（boot.cmd 系列）
+# ⚠⚠ 必须显式指定 eol=lf：core.autocrlf=true 时，工作区会被转成 CRLF，
+#   而 CI 在 Linux 检出拿到 LF —— 同一份文件本地与 CI 字节数不同
+#   （boot-meson64.cmd：LF 12348 B vs CRLF 12616 B，差 268 = 行数），
+#   本地核对字节数/大小会得出错误结论。
+*.cmd    text eol=lf
+
 .gitattributes  text eol=lf
 .gitignore    text eol=lf
 
