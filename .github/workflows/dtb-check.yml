@@ -85,6 +85,41 @@ jobs:
           ls include/dt-bindings/gpio/gpio.h
           ls include/dt-bindings/leds/common.h
 
+      - name: Verify board DTS includes exactly one SoC dtsi
+        # 直接卡住「同时 include 多份 SoC 的 dtsi」这个**病因**。
+        #
+        #   meson-g12b-a311d.dtsi / meson-g12b-s922x.dtsi 等都在根节点下定义
+        #   同名 opp-table-0 / opp-table-1（label 也同名），电压值不同。
+        #   dtc 合并它们而不是报错（livetree.c: merge_nodes()），
+        #   产出一张跨 SoC 混搭的 CPU 频率-电压表。
+        #
+        #   本板是 A311D → 只允许 meson-g12b-a311d.dtsi 一份。
+        run: |
+          set -eu
+          fail=0
+          for f in "$GITHUB_WORKSPACE"/dt/meson-halo-a311d.dts \
+                   "$GITHUB_WORKSPACE"/dt/meson-halo-a311d-pcie.dts; do
+            echo "::group::include check $(basename "$f")"
+            # 板级 dts 只应 include 恰好一个 SoC 级 dtsi
+            n=$(grep -cE '^#include "meson-g12b-[a-z0-9]*\.dtsi"' "$f" || true)
+            names=$(grep -oE '^#include "meson-g12b-[a-z0-9]*\.dtsi"' "$f" \
+                    | sed 's/.*"\(.*\)"/\1/' | tr '\n' ' ')
+            echo "  SoC dtsi 引用: $names"
+            if [ "$n" -ne 1 ]; then
+              echo "::error file=dt/$(basename "$f")::应恰好 include 1 个 SoC dtsi，实际 $n 个（$names）"
+              echo "::error::多个 SoC dtsi 会定义同名 opp-table-0/opp-table-1，"
+              echo "::error::dtc 会把它们合并成混搭的 CPU 频率-电压表。"
+              fail=1
+            elif ! grep -q '^#include "meson-g12b-a311d.dtsi"' "$f"; then
+              echo "::error file=dt/$(basename "$f")::本板是 A311D，应 include meson-g12b-a311d.dtsi"
+              fail=1
+            else
+              echo "  OK: 只 include meson-g12b-a311d.dtsi"
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
       - name: Compile DTBs
         run: |
           set -eux
@@ -96,8 +131,13 @@ jobs:
 
           fail=0
           # 先确认 dts 依赖链完整（只有 SoC 级文件，板级 dts 已由上面 cp 放入）
-          for req in meson-g12b-a311d.dtsi meson-g12.dtsi \
-                     meson-g12-common.dtsi meson-g12b-s922x.dtsi; do
+          # ⚠ 列表必须与板级 dts 的实际 include 链一致：
+          #   meson-h12b-a311d.dtsi → meson-g12b.dtsi → meson-g12.dtsi
+          #                                    → meson-g12-common.dtsi
+          #   以前这里列的是 meson-g12b-s922x.dtsi（那是多余 include 带来的依赖），
+          #   却漏了真正必需的 meson-g12b.dtsi —— 依赖链检查形同虚设。
+          for req in meson-g12b-a311d.dtsi meson-g12b.dtsi meson-g12.dtsi \
+                     meson-g12-common.dtsi; do
             if [ ! -f "$D/$req" ]; then
               echo "::error::缺少 SoC 依赖 $D/$req"
               ls "$D" | head -30
@@ -148,7 +188,17 @@ jobs:
             dtc_rc=$?
             set -e
             # 过滤上游既有警告（unit_address_vs_reg 等），只看本板问题
-            grep -vE 'unit_address_vs_reg|simple_bus_reg|avoid_unnecessary_addr_size|also defined at' \
+            #
+            # ⚠⚠⚠ 不要再过滤 "also defined at"！
+            #   那是 dtc 报告「同名节点/属性被合并」时打的位置信息
+            #   （checks.c: check_msg() → "  also defined at %s"）。
+            #   本仓库曾因为过滤掉它而长期看不见一个真 bug：
+            #   板级 DTS 同时 include 了 a311d 与 s922x 两份 SoC 的 dtsi，
+            #   两者都定义同名 opp-table-0/opp-table-1，dtc 会**合并**成混搭表
+            #   （livetree.c: merge_nodes()），CPU 频率-电压表被污染。
+            #   dtc 自己不报错（合并后树里已无重名节点），
+            #   所以「also defined at」是当时唯一能暴露问题的线索。
+            grep -vE 'unit_address_vs_reg|simple_bus_reg|avoid_unnecessary_addr_size' \
                  "/tmp/$f.err" > "/tmp/$f.filt" || true
             if [ "$dtc_rc" -ne 0 ]; then
               # 不管 stderr 被过滤成什么样，dtc 自己都说失败了 → 必须红
@@ -167,6 +217,43 @@ jobs:
               fail=1
             else
               echo "OK  $f.dtb  ($(stat -c%s "/tmp/$f.dtb") bytes)"
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: Verify CPU OPP tables against upstream A311D
+        # ⚠ 这道检查对应一个真实的、dtc 查不出来的 bug。
+        #
+        #   板级 DTS 曾经同时 include meson-g12b-a311d.dtsi 和
+        #   meson-g12b-s922x.dtsi。两者都定义根节点下的同名
+        #   opp-table-0 / opp-table-1，电压值不同（A311D 1GHz=761000µV，
+        #   S922X 1GHz=731000µV）。
+        #
+        #   dtc 对同名节点是**合并**（livetree.c: merge_nodes()）而不是报错：
+        #   属性后者覆盖前者，子节点取并集 → 产出一张跨 SoC 混搭的
+        #   频率-电压表，还混进 A311D 不支持的 1.896 / 1.992 GHz。
+        #   合并后树里已无重名节点，所以 dtc 的 duplicate_node_names /
+        #   duplicate_label 两道 ERROR 级检查都不触发，
+        #   **dtc 退出码是 0，CI 全绿，产物却是错的**。
+        #
+        #   所以只能显式比对：DTB 里的 OPP 表必须与上游
+        #   meson-g12b-a311d.dtsi 的定义完全一致。
+        run: |
+          set -eu
+          K="$RUNNER_TEMP/kernel"
+          REF="$K/arch/arm64/boot/dts/amlogic/meson-g12b-a311d.dtsi"
+          if [ ! -f "$REF" ]; then
+            echo "::error::找不到上游参考 $REF"
+            exit 1
+          fi
+          echo "参考文件: $REF"
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::OPP check $f.dtb"
+            if ! python3 "$GITHUB_WORKSPACE/scripts/check-opp-tables.py" \
+                 "/tmp/$f.dtb" "$REF"; then
+              fail=1
             fi
             echo "::endgroup::"
           done
