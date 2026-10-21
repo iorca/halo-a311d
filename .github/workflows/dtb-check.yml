@@ -88,6 +88,27 @@ jobs:
           ls include/dt-bindings/gpio/gpio.h
           ls include/dt-bindings/leds/common.h
 
+      - name: Verify the two board variants differ only in the FUSB340 choice
+        # 两个变体是**手工维护的复制品**（历史上由 work/mk_pcie_variant.py 生成，
+        # 该脚本已删除 → 现在靠人复制）。
+        #
+        # 它们应当是同一份板级描述，只差 FUSB340 那侧的选择：
+        #   model 字符串 / &usb 与 &pcie 的 status 互斥 / &pcie 的 reset-gpios
+        # 除此之外的任何差异都是**漂移** —— 一边改了另一边忘了改。
+        #
+        # 为什么值得守：两个变体分别发布，不会同时出现在一个系统里，
+        # 没人会拿它们互相比较。漂移的表现是
+        # 「USB3.0 模式正常，PCIe 模式某个外设不工作」，
+        # 而本仓库历史上正好踩过这类坑（LED 属性名两变体写法不一致、
+        # hog 位置两变体不一致）。
+        run: |
+          set -eu
+          if ! python3 "$GITHUB_WORKSPACE/scripts/check-variant-diff.py" \
+               "$GITHUB_WORKSPACE/dt/meson-halo-a311d.dts" \
+               "$GITHUB_WORKSPACE/dt/meson-halo-a311d-pcie.dts"; then
+            exit 1
+          fi
+
       - name: Verify board DTS includes exactly one SoC dtsi
         # 直接卡住「同时 include 多份 SoC 的 dtsi」这个**病因**。
         #
