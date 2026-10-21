@@ -40,8 +40,21 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+/* ⚠⚠ 只能 include a311d 这一份，**不要**再 include meson-g12b-s922x.dtsi。
+ *
+ *   原因：两个 dtsi 都在根节点下定义**同名** opp-table-0 / opp-table-1
+ *   （label 也同名：cpu_opp_table_0 / cpub_opp_table_1），但电压值不同：
+ *     a311d: 1.0GHz = 761000 µV
+ *     s922x: 1.0GHz = 731000 µV
+ *   dtc 对同名节点是**合并**而非报错（livetree.c: merge_nodes()），
+ *   后 include 的 s922x 覆盖同名属性、子节点取并集 →
+ *   产出一张「A311D + S922X 混搭」的 CPU 频率-电压表，
+ *   且混入 A311D 不支持的频率点（1.896 / 1.992 GHz）。
+ *
+ *   本板是 A311D，只需 a311d 的表。上游 A311D VIM3 板级文件
+ *   （meson-g12b-a311d-khadas-vim3.dts）也只 include 一份。
+ */
 #include "meson-g12b-a311d.dtsi"
-#include "meson-g12b-s922x.dtsi"
 
 / {
 	model = "Althea A311D (MAIN_V0.3)";

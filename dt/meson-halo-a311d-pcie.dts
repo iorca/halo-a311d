@@ -49,8 +49,10 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+/* ⚠⚠ 只能 include a311d 这一份，**不要**再 include meson-g12b-s922x.dtsi。
+ * 详见 meson-halo-a311d.dts 里同段注释（同名 opp-table 会被 dtc 合并成混搭表）。
+ */
 #include "meson-g12b-a311d.dtsi"
-#include "meson-g12b-s922x.dtsi"
 
 / {
 	model = "Althea A311D (MAIN_V0.3) PCIe";
