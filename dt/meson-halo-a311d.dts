@@ -310,7 +310,7 @@
  * ================================================================== */
 &cpu0 {
 	cpu-supply = <&vddcpu_b>;      /* A53 小核 */
-	operating-points-v2 = <&cpu_opp_table_0>;
+	operating-points-v2 = <&cpub_opp_table_1>;   /* 测试：故意指错表 */
 	clocks = <&clkc CLKID_CPU_CLK>;
 };
 
