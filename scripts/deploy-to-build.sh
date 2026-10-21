@@ -138,6 +138,33 @@ if [ ! -x "$UP/customize-image.sh" ]; then
 fi
 echo "✓ customize-image.sh  (overlay -> /boot)"
 
+# -----------------------------------------------------------------------------
+# 6. 引导脚本覆盖 —— USB3.0 / PCIe 冷切换
+#
+#    armbian 优先取 $USERPATCHES_PATH/bootscripts/<BOOTSCRIPT 源名>，命中就用它
+#    覆盖自己的那份（lib/functions/rootfs/distro-agnostic.sh:190-195）。
+#    本板的 BOOTSCRIPT 源名是 **boot-meson64.cmd**，实测日志：
+#      "Deploying boot script .../config/bootscripts/boot-meson64.cmd -> /boot/boot.cmd"
+#    armbian-bsp-cli 的 postinst 会用 mkimage 把它编成 /boot/boot.scr。
+#
+#    ⚠ 只改 boot.cmd 不够：还要
+#      - board conf 打开 CONFIG_CMD_GPIO（否则没有 gpio 命令）
+#      - dt/meson-halo-a311d-pcie.dts 的 fusb340_hog 改成 output-high
+#        （内核 gpio-hog 会覆盖 u-boot 设的电平，两边必须一致）
+# -----------------------------------------------------------------------------
+BOOT_SRC="$REPO_ROOT/boot/boot-meson64.cmd"
+mkdir -p "$UP/bootscripts"
+if [ ! -f "$BOOT_SRC" ]; then
+    echo "✗ 缺少 $BOOT_SRC —— 冷切换不会生效" >&2
+    exit 1
+fi
+install -m 0644 "$BOOT_SRC" "$UP/bootscripts/boot-meson64.cmd"
+if [ ! -s "$UP/bootscripts/boot-meson64.cmd" ]; then
+    echo "✗ boot-meson64.cmd 未部署到 $UP/bootscripts" >&2
+    exit 1
+fi
+echo "✓ bootscripts/boot-meson64.cmd  (覆盖 armbian boot.cmd，含冷切换)"
+
 echo
 echo "==> 部署完成。编译命令："
 echo "    cd $BUILD_DIR"
