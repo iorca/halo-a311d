@@ -1,6 +1,7 @@
 # halo-a311d
 
-Amlogic A311D —— MAIN_V0.3 底板 + W400 核心板，mainline 内核与设备树，基于 armbian/build 构建。
+Amlogic A311D —— **Halo 底板**（原理图工程代号 MAIN_V0.3）+ **荣品 PRO-A311D 核心板**
+（厂商内部代号 W400），mainline 内核与设备树，基于 armbian/build 构建。
 
 [![dtb-check](https://github.com/iorca/halo-a311d/actions/workflows/dtb-check.yml/badge.svg)](https://github.com/iorca/halo-a311d/actions/workflows/dtb-check.yml)
 [![kernel-build](https://github.com/iorca/halo-a311d/actions/workflows/kernel.yml/badge.svg)](https://github.com/iorca/halo-a311d/actions/workflows/kernel.yml)
