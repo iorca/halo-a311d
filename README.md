@@ -350,9 +350,10 @@ dtc -I dts -O dtb -o /tmp/out.dtb /tmp/out.dts
 | PCIe PERST# | GPIOA_0 | `ACTIVE_LOW`（R88 4.7k 上拉 A_3V3）|
 | PCIe PEWAKE | GPIOA_1 | R89 4.7k 上拉 |
 | PCIe CLKREQ# | GPIOC_7 | `ACTIVE_LOW`（R90 4.7k 下拉）|
-| U42 SHT40 | GPIOA_14/A15 | `&i2c3` ✅ 已启用 |
+| **U42 SHT40**（温湿度，装在 SoC 背面）| GPIOA_14/A15 | `&i2c3` ✅ 已启用，地址 0x44 |
+| 散热风扇 PWM | GPIOAO_11 | `&pwm_AO_ab` 0(A)，见下方 PWM 分配 |
 
-⚠ **U45 (第二颗 SHT40) 已从 DTS 移除**：网表（`netlist-dump/nl_parsed_full.json`）显示
+⚠ **U45 (第二颗 SHT40) 硬件已删除**：网表（`netlist-dump/nl_parsed_full.json`）显示
 `I2C_AO_S0_SCL` / `I2C_AO_S0_SDA` **各只有 1 个连接点**（就是 U45 自己）——
 信号线单端悬空，既没接 SoC 的 AO I2C 引脚，也没有上拉电阻。
 对比 U42 所在的 `TOUCH_I2C_SCL/SDA` 直连 CN2-64/62 → GPIOA_15/A14。
@@ -363,14 +364,45 @@ dtc -I dts -O dtb -o /tmp/out.dtb /tmp/out.dts
 
 `&i2c_AO` 控制器本身保留（AO 域 I2C 引出到 CN3-69/71），但**不挂任何设备节点**。
 
-### CPU 供电（照抄 VIM3，已核实引脚）
+### PWM 分配
 
-| 电源 | 核 | 控制器+通道 | 引脚 | pinctrl group |
+Amlogic PWM 控制器**两两配对**（AB / CD / EF），每个控制器 2 个通道；
+`pwms = <&pwm_AO_cd 1 1250 0>` 里的 `1` = D 通道。
+
+| 用途 | 控制器+通道 | 引脚 | pinctrl group | 位置 |
 |---|---|---|---|---|
-| VDDCPU_A | A73 大核 | `&pwm_ab` **0** | **GPIOE_2** | `pwm_a_e_pins` |
-| VDDCPU_B | A53 小核 | `&pwm_AO_cd` **1**(D) | **GPIOE_1** | `pwm_ao_d_e_pins` |
+| VDDCPU_A（A73 大核供电）| `&pwm_ab` **0**(A) | GPIOE_2 | `pwm_a_e_pins` | **核心板** |
+| VDDCPU_B（A53 小核供电）| `&pwm_AO_cd` **1**(D) | GPIOE_1 | `pwm_ao_d_e_pins` | **核心板** |
+| 32.768kHz（AP6256 WiFi 时钟）| `&pwm_ef` **0**(E) | GPIOX_16 | `pwm_e_pins` | 核心板 |
+| **散热风扇** | `&pwm_AO_ab` **0**(A) | **GPIOAO_11** | `pwm_ao_a_pins` | 底板 |
 
-Amlogic PWM 两两配对（AB / CD / EF）；`pwms = <&pwm_AO_cd 1 1250 0>` 里的 `1` = D 通道。
+⚠ **两个必须知道的约束**：
+
+1. **`GPIOE_1` / `GPIOE_2` 是核心板（SoM）上的引脚**，底板网表
+   （`netlist-dump/`）里查不到是**正常的** —— 那份网表只覆盖底板。
+   查这类脚要拿核心板原理图。
+
+2. **同一个 PWM 控制器无法给两个通道配不同引脚**。
+   `drivers/pwm/pwm-meson.c` 不读 pinctrl，引脚复用由 pinctrl 驱动按控制器节点的
+   `pinctrl-0` 统一应用，而它只能有一组。
+   → 这就是风扇**没有**用原标注的 GPIOAO_6（`pwm_ao_c_6`，属 `pwm_AO_cd` 的 C 通道）
+   的原因：`pwm_AO_cd` 的 D 通道已被 VDDCPU_B 占用。
+
+### CPU OPP 表
+
+本板**完全使用上游 mainline** 的 `meson-g12b-a311d.dtsi`，无任何覆写：
+
+| 集群 | 核 | 档数 | 频率范围 | 顶档电压 |
+|---|---|---|---|---|
+| A73 大核 | cpu@100–103（4 核）| 11 | 1.000 – **2.208 GHz** | 1011 mV |
+| A53 小核 | cpu@0/1（2 核）| 7 | 1.000 – **1.800 GHz** | 1001 mV |
+
+供电余量：两个 regulator 的上限都是 1050 mV，顶档 1011 mV → 余量 39 mV。
+
+> **厂商 BSP 里另有一张更激进的表**（`docs/vendor_dts/g12b_a311d_w400_drm_buildroot.dts:733-862`）：
+> 13 + 15 档、0.5 MHz 起、A73 顶到 **2.4 GHz**，且有 500/667 MHz 低频档。
+> **本板没有采用**，因为厂商顶档 **1040 mV**，距本板 regulator 上限
+> （1050 mV）只剩 **10 mV** 余量。要换的话得先解决这个余量问题。
 
 ---
 
@@ -396,12 +428,28 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 
 ### dtb-check（`ubuntu-24.04`）
 
-```
-1. Verify toolchain     dtc 预装则跳过，显式 command -v 校验
-2. Sparse-clone dts    amlogic + include/dt-bindings + include/uapi，test -f 验符号链接
-3. Compile DTBs         预检(SoC依赖/dts/头文件) → cpp → dtc
-                        ✅ dtc 退出码 + 产物非空 + 过滤后 stderr 三层判据
-```
+共 **8 道检查**（`dtb-check.yml`），每道都做过双向验证 ——
+在正确代码上通过 + 在**真实坏产物**上报红：
+
+| # | 检查 | 脚本 | 拦什么 |
+|---|---|---|---|
+| 1 | 两变体只差 FUSB340 那侧 | `check-variant-diff.py` | 变体间意外漂移（一边改了另一边忘改）|
+| 2 | 恰好 include 一份 SoC dtsi | 内联 | 多份 SoC dtsi 被合并 → OPP 表污染 |
+| 3 | `&label` 无悬空、label 不含 `-` | `check-dts-refs.py` | 删节点漏改引用；cpp 把 label 里的 `-` 当减号 |
+| 4 | dtc 编译 | 内联 | dtc 退出码 + 产物非空 + **未过滤**的 stderr |
+| 5 | 每个 CPU 的 OPP 表与上游一致 | `check-opp-tables.py` | CPU 指向错误的 OPP 表 |
+| 6 | 每个 gpio-hog 都是内核认可的形式 | `check-gpio-hogs.py` | 内核完全不认的 hog 写法 |
+| 7 | DTB 符合内核 device-tree schema | `check-dtschema.py` | 属性名写错 / 必填属性缺失 |
+| 8 | 上传 DTB 产物 | — | 便于下载后做二进制级复核 |
+
+**护栏的设计原则**：期望值一律取自**上游**，不采信被测板级 DTS 自己的声明
+（否则「板级把 CPU 指到错误的表」这类错误永远发现不了 —— 自洽但都是错的）。
+
+流程：`Verify toolchain` → `Sparse-clone dts` → 上述 8 道检查 → 上传 DTB。
+
+> ⚠ 第 7 道用的 dt-validate 会把**原始诊断**（`*.schema.txt` / `*.schema.json`）
+> 一并上传为 artifact —— 便于独立复核「豁免根节点自研 compatible」这个判断
+> 有没有掩盖别的问题。
 
 ### kernel-build（`ubuntu-24.04-arm`）
 
@@ -436,10 +484,14 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 
 | 项 | 说明 |
 |---|---|
-| **真机未验证** | 全部只在 CI 编过，**没在板子上启动过** |
+| **真机未验证** | 全部只在 CI 编过，**没在板子上启动过**（PCB 未生产）|
 | `gpio read` 编号 | 51 是按「periphs 先探测」推的。上机若「贴了上拉却读到 LOW」，改 `althea_sel_num=66` 即可，不需重编 |
 | 音频 | **完全不使用音频功能**。DTS 里 TDM/PDM/声卡相关节点（`&tdmif_a`、`&tdmin_a`、`&tdmout_a`、`&toddr_a~c` 等）全部不使能 |
-| U45 SHT40 | 已从 DTS 移除 —— 网表显示其 I2C 线单端悬空（无 SoC 端、无上拉），本就探测不到 |
+| **散热风扇不转** | PWM 通道已在 DTS 里配好（`&pwm_AO_ab` 0(A) / GPIOAO_11），但**驱动电路（MOSFET + 续流二极管）layout 尚未完成** —— 网表上 `PWM_FAN` 只连一颗 1N5819WT 二极管，无风扇连接器、无 MOSFET。`/sys/class/pwm/` 会有该通道但无负载 |
+| **风扇温度联动未做** | SHT40（U42，装在 SoC 背面）已在 `&i2c3` 上启用，但**没接进 thermal-zones** —— 设阈值需要实测温度。待layout 定稿、拿到实物后做 |
+| 降频保护用默认值 | `cpu-thermal` 的 85/95/110°C 三档 + cooling-map 65%/72% 都是上游默认值，未按本板散热能力调整 |
+| `clock-latency-ns` 缺失 | 上游 18 个 OPP 档里只有两个 1.0 GHz 各带 `= <50000>`，其余 16 档缺省 → 内核按全表最大值 50 µs 算。补齐需要**实测**电压切换时间 |
+| U45 SHT40 | **硬件已删除**。网表上其 I2C 线单端悬空（无 SoC 端、无上拉），本就读不到，DTS 里也已移除 |
 
 ---
 
