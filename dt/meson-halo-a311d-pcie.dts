@@ -269,6 +269,30 @@
 		pwms = <&pwm_ef 0 30518 0>; /* PWM_E at 32.768KHz */
 	};
 
+	/* ------------------------------------------------------------
+	 * 散热风扇 PWM —— GPIOAO_11 = pwm_AO_ab 通道0(A)
+	 * ------------------------------------------------------------
+	 * 选 pwm_AO_ab(A) 而非 pwm_AO_cd(C) 的原因：
+	 *   风扇原标注在 GPIOAO_6（= pwm_ao_c_6，属 pwm_AO_cd 的 C 通道），
+	 *   但 pwm_AO_cd 的 **D 通道已被 vddcpu_b（小核A53 供电）占用**。
+	 *   meson pwm 驱动（drivers/pwm/pwm-meson.c）**不读 pinctrl**，
+	 *   引脚复用由 pinctrl 驱动按控制器节点的 `pinctrl-0` 统一应用，
+	 *   而 `pinctrl-0` 只能有一组 → 同一控制器无法给两个通道配不同引脚。
+	 *   （上游 10 个用 pwm_AO_* 的板，无一在同一控制器上用两个通道。）
+	 *   GPIOAO_11 在 pwm_AO_ab 上，且该控制器本板完全空闲。
+	 *
+	 * ⚠ TODO：风扇驱动电路（MOSFET + 续流二极管）layout 尚未完成。
+	 *   网表现状：`PWM_FAN` 网络只连 U9.1（一颗 1N5819WT 二极管阴极），
+	 *   U9 阳极接 GPIOAO_6，全网无风扇连接器、无 MOSFET。
+	 *   → 本节点只是把 PWM 通道准备好；**风扇不会转**，
+	 *     /sys/class/pwm/pwmchipN 会出现但无实际负载。
+	 *   layout 定稿后需核对实际驱动电路接的是哪个脚，若非 GPIOAO_11 则改。
+	 */
+	fan_pwm: fan-pwm {
+		compatible = "pwm-fan";
+		pwms = <&pwm_AO_ab 0 1250 0>;
+	};
+
 	hdmi-connector {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -305,6 +329,144 @@
 	 * MIPI-CSI(FPC2) / CAMERA_RST / CM_RST / CM_PWRDN / I2C2_*_CAM 均不引用
 	 * FPC3 仅保留 MIPI-DSI 显示通路
 	 */
+};
+
+/* ==================================================================
+ * CPU OPP 表 —— 补 clock-latency-ns
+ * ==================================================================
+ * ⚠⚠ **这里的 clock-latency-ns 是按比例推算的，不是实测值。**
+ *
+ * 背景：上游 meson-g12b-a311d.dtsi 的 18 个 OPP 档里，
+ *   **只有两张表的 1.0GHz 各带一个 clock-latency-ns = <50000>**，
+ *   其余全缺。而内核取所有档位的**最大值**作为该 policy 的
+ *   transition latency（cpufreq_cpu_get_max_latency()），
+ *   于是缺省时全表都按 50 µs 算—— 升到 2.208GHz 也只等 50 µs，
+ *   而那里恰是电压跨度最大的一档（731→1011 mV）。
+ *
+ * 推算方法（参照 Apple A14 的 t8103.dtsi **实测**数据）：
+ *   大核 600MHz→2064MHz：7.5 / 22 / 27 / 33 / **50** µs
+ *   小核 600MHz→2592MHz：8 / 19 / 21 / 23 / 24 / 29 / 31 / 34 / 36 / **51** µs
+ *   → 规律：latency 随频率单调递增，且**最高档出现尖峰**
+ *     （末档比前一档高 50%~60%，对应电压跨度最大）。
+ *   本表按同一规律、以 1.0GHz 档的 50000 ns 为基准等比放大，顶档加尖峰。
+ *
+ * ⚠ **拿到实物后必须实测校正**（示波器量电压切换时间，或读 cpufreq
+ *   的 transition 统计）。推算值偏保守（宁可多等），不会导致升频后
+ *   立刻降频，但升频响应会略慢于理论最优。
+ *
+ * ⚠ 实现方式：**整表重定义**而非 `&opp_xxx` 引用 —— 上游的OPP 档节点
+ *   **没有 label**，而且两张表里`opp-1000000000` 等节点**同名**，
+ *   无法用 label 单独引用；重定义同名节点会被 dtc **合并**
+ *   （livetree.c: merge_nodes()），属性以本文件为准，正是想要的效果。
+ *   ⚠ 风险与文件头 s922x.dtsi 那段同类：**只允许覆写属性，
+ *     不要改 opp-hz / opp-microvolt** —— CI 的 check-opp-tables.py
+ *     会逐 CPU 断言它们与上游一致。
+ */
+#undef cpu_opp_table_0
+#undef cpub_opp_table_1
+
+/* A53 小核：1.0 – 1.8 GHz */
+cpu_opp_table_0: opp-table-0 {
+	compatible = "operating-points-v2";
+	opp-shared;
+
+	opp-1000000000 {
+		opp-hz = /bits/ 64 <1000000000>;
+		opp-microvolt = <761000>;
+		clock-latency-ns = <50000>;   /* 上游实测值 */
+	};
+	opp-1200000000 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <781000>;
+		clock-latency-ns = <60000>;
+	};
+	opp-1398000000 {
+		opp-hz = /bits/ 64 <1398000000>;
+		opp-microvolt = <811000>;
+		clock-latency-ns = <69900>;
+	};
+	opp-1512000000 {
+		opp-hz = /bits/ 64 <1512000000>;
+		opp-microvolt = <861000>;
+		clock-latency-ns = <75600>;
+	};
+	opp-1608000000 {
+		opp-hz = /bits/ 64 <1608000000>;
+		opp-microvolt = <901000>;
+		clock-latency-ns = <80400>;
+	};
+	opp-1704000000 {
+		opp-hz = /bits/ 64 <1704000000>;
+		opp-microvolt = <951000>;
+		clock-latency-ns = <85200>;
+	};
+	opp-1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1001000>;
+		clock-latency-ns = <100000>;  /* 顶档：电压跨度最大，尖峰 */
+	};
+};
+
+/* A73 大核：1.0 – 2.208 GHz */
+cpub_opp_table_1: opp-table-1 {
+	compatible = "operating-points-v2";
+	opp-shared;
+
+	opp-1000000000 {
+		opp-hz = /bits/ 64 <1000000000>;
+		opp-microvolt = <731000>;
+		clock-latency-ns = <50000>;   /* 上游实测值 */
+	};
+	opp-1200000000 {
+		opp-hz = /bits/ 64 <1200000000>;
+		opp-microvolt = <751000>;
+		clock-latency-ns = <60000>;
+	};
+	opp-1398000000 {
+		opp-hz = /bits/ 64 <1398000000>;
+		opp-microvolt = <771000>;
+		clock-latency-ns = <69900>;
+	};
+	opp-1512000000 {
+		opp-hz = /bits/ 64 <1512000000>;
+		opp-microvolt = <771000>;
+		clock-latency-ns = <75600>;
+	};
+	opp-1608000000 {
+		opp-hz = /bits/ 64 <1608000000>;
+		opp-microvolt = <781000>;
+		clock-latency-ns = <80400>;
+	};
+	opp-1704000000 {
+		opp-hz = /bits/ 64 <1704000000>;
+		opp-microvolt = <791000>;
+		clock-latency-ns = <85200>;
+	};
+	opp-1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <831000>;
+		clock-latency-ns = <90000>;
+	};
+	opp-1908000000 {
+		opp-hz = /bits/ 64 <1908000000>;
+		opp-microvolt = <861000>;
+		clock-latency-ns = <95400>;
+	};
+	opp-2016000000 {
+		opp-hz = /bits/ 64 <2016000000>;
+		opp-microvolt = <911000>;
+		clock-latency-ns = <100800>;
+	};
+	opp-2108000000 {
+		opp-hz = /bits/ 64 <2108000000>;
+		opp-microvolt = <951000>;
+		clock-latency-ns = <105400>;
+	};
+	opp-2208000000 {
+		opp-hz = /bits/ 64 <2208000000>;
+		opp-microvolt = <1011000>;
+		clock-latency-ns = <150000>; /* 顶档：电压跨度最大，尖峰 */
+	};
 };
 
 /* ==================================================================
@@ -356,6 +518,13 @@
 /* pwm_AO_cd 通道1(D) → GPIOE_1 = VDDCPU_B_PWM（小核 A53） */
 &pwm_AO_cd {
 	pinctrl-0 = <&pwm_ao_d_e_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+/* pwm_AO_ab 通道0(A) → GPIOAO_11 = 散热风扇 PWM（详见根节点 fan_pwm 段） */
+&pwm_AO_ab {
+	pinctrl-0 = <&pwm_ao_a_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
