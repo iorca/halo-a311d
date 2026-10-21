@@ -251,8 +251,13 @@ jobs:
           fail=0
           for f in meson-halo-a311d meson-halo-a311d-pcie; do
             echo "::group::OPP check $f.dtb"
+            # 三个输入：编译出的 dtb、该变体的板级 dts、上游 a311d dtsi。
+            # 脚本从板级 dts 读出每个 &cpuN 声明的 operating-points-v2，
+            # 再到 dtb 里反查该 cpu 实际引用的表，逐项与上游比对。
             if ! python3 "$GITHUB_WORKSPACE/scripts/check-opp-tables.py" \
-                 "/tmp/$f.dtb" "$REF"; then
+                 "/tmp/$f.dtb" \
+                 "$GITHUB_WORKSPACE/dt/$f.dts" \
+                 "$REF"; then
               fail=1
             fi
             echo "::endgroup::"
