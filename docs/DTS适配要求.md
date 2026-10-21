@@ -415,33 +415,33 @@ U42 = SHT40-CD1B-R3 (温湿度传感器, I2C 地址 0x44)
 ```
 - FPC3 座（触控屏）目前 `Add into BOM=no`（未贴），若后续贴上（如 GT911）再加节点，共用同一 `&i2c_ee_m3`，不同 reg 地址。
 
-### 7.3 第二颗 SHT40 —— **U45 @ `I2C_AO_S0`（AO 域）** ✅ 两条总线**都启用**
+### 7.3 第二颗 SHT40 —— **U45 @ `I2C_AO_S0`（AO 域）** ❌ **已从 DTS 移除**
 
-> ✅ **网表终版确认（2026 重新导出核验）**：U42 与 U45 **两颗 SHT40 均 `Add into BOM=yes`，同时贴装**。
-> 此前"二选一"的判断已作废 —— 它们在**两个独立 I2C 控制器**上，同地址 0x44 **合法共存**。
+> ❌ **网表复核后推翻（2026-10-21）**：此前"两颗都贴装、两条总线都启用"的判断有误。
+> 用 `netlist-dump/nl_parsed_full.json`（495 元件 / 393 网络）逐连接点核对后发现 ——
+> **U45 的 I2C 信号线在网表上是单端悬空的**。
 
-**实测链路**
+**网表证据**
 
 ```
-I2C_AO_S0_SDA = U45.1
-I2C_AO_S0_SCL = U45.2
-U45 = SHT40-CD1B-R3   (bom=yes)
-  .1 = SDA   .2 = SCL   .3 = VDDIO_AO18(1.8V)   .4/.5 = GND
-配套 C218 (CL05B104KB54PNC, bom=yes) 挂 VDDIO_AO18 / GND 去耦
+I2C_AO_S0_SDA → 连接点仅 1 个：U45.1
+I2C_AO_S0_SCL → 连接点仅 1 个：U45.2
 ```
 
-**两颗对照**
+即：**既没接到 SoC 的 AO I2C 引脚，也没有上拉电阻**。
+对照 U42 所在的总线（正常）：
 
-| 项 | **U42**（§7.2） | **U45**（本节） |
-|---|---|---|
-| 总线 | `TOUCH_I2C` | `I2C_AO_S0` |
-| A311D 引脚 | GPIOA_14 / GPIOA_15 | AO 域 I2C（经 CN3） |
-| 底板出口 | CN2-62 / CN2-64 | CN3 |
-| 供电 | `A_3V3` | **`VDDIO_AO18`（1.8V）** |
-| 同伴器件 | FPC3 触控座（未贴） | C218 去耦 |
-| 地址 | 0x44 | 0x44（**不同控制器，不冲突**）|
+```
+TOUCH_I2C_SDA → CN2.62 + FPC3.17 + U42.1   （→ A311D GPIOA_14）
+TOUCH_I2C_SCL → CN2.64 + FPC3.18 + U42.2   （→ A311D GPIOA_15）
+```
 
-**DTS 写法（两条都okay）**
+U45 的供电（`VDDIO_AO18`）与去耦（C218）都正常，**只有信号线悬空**。
+
+**结论**：这颗器件在 I2C 上收不到 ACK，`sensirion,sht4x` 驱动永远探测不到它 →
+DTS 里写节点只会误导后来人。**已从两个变体的 DTS 中移除。**
+
+**U42（保留启用）**
 ```
 /* U42：EE 域 I2C（GPIOA_14/15），与触控屏共用 */
 &i2c_ee_m3 {
@@ -452,20 +452,25 @@ U45 = SHT40-CD1B-R3   (bom=yes)
     };
     /* 若后续贴 FPC3 触控屏（如 GT911），在此追加不同 reg 节点 */
 };
-
-/* U45：AO 域 I2C，休眠仍可采样 */
-&i2c_ao_s0 {
-    status = "okay";
-    sht40_ao: sht40@44 {
-        compatible = "sensirion,sht4x";
-        reg = <0x44>;
-    };
-};
 ```
 
-- **关键**：两者是**不同 I2C 控制器**，同 `reg = <0x44>` 完全合法。
-- U45 挂AO 域 → 系统休眠时仍可读温湿度。
-- ⚠ 若把两颗挂到**同一个** `&i2c` 控制器下 → 地址冲突，总线锁死。
+**`&i2c_AO` 控制器保留，但不挂任何设备节点**
+```
+&i2c_AO {
+    status = "okay";
+    pinctrl-0 = <&i2c_ao_sck_pins>, <&i2c_ao_sda_pins>;   /* GPIOAO_2 / GPIOAO_3 */
+    pinctrl-names = "default";
+};
+```
+- 保留意义：AO 域 I2C 引出到 CN3-69/71（网络 `I2C_AO_M0_SDA/SCL`），
+  后续若贴装外设可直接用这条控制器。
+- 该路经 Q13/Q14（MS3134 模拟开关，`add_bom=no` 即不贴），目前是断的。
+
+**另：RTC 也一并移除**
+- `rtc@51` (`haoyu,hym8563`) 节点已从 DTS 删除。
+- 依据：本板 495 个元件中**没有任何 RTC 芯片**（无 8563/3231/3028/DS1307 等）。
+  该节点源自厂商 BSP（`docs/vendor_dts/pro-a311d.dts:380`），本板无对应硬件。
+
 - 原 `I2C_AO_M0_SDA/SCL`（CN3-69/71，经 Q13/Q14 MS3134）仍为**未使用**（Q13/Q14 `bom=no`），那条是通摄像头的，本次未用。
 
 ## 8. PCIe / USB3.0 切换（U28 = FUSB340TMX）★
@@ -618,7 +623,7 @@ MT9700 = **单P-MOS 负载开关**（Aerosemi），80mΩ，USB VBUS 供电用。
 | P1 | `&dsi`（显示） | MIPI DSI 走 FPC3 |
 | P1 | `&sdio`（AP6256） | **仅 1 个 SDIO = `&sd_emmc_a`**（A311D 仅一个 SDIO 控制器） |
 | P1 | `&ir` | `GPIOAO_5`，`GPIO_ACTIVE_LOW` |
-| P1 | `&i2c_ee_m3` / `&i2c_ao_s0` | **两颗 SHT40 都启用**（U42/U45，同 0x44 不同控制器）→ §7.2 / §7.3 |
+| P1 | `&i2c3` | **只启用 U42 一颗 SHT40**（U45 信号线网表悬空，已移除）→ §7.2 / §7.3 |
 | P1 | `&spi_B` | MOSI=GPIOH_4/MISO=GPIOH_5/CS=GPIOH_7/SCLK=GPIOH_6 |
 | P1 | 屏控制 GPIO | RST=GPIOA_3、RS=GPIOA_4（普通GPIO）、背光=GPIOH_8（**ACTIVE_LOW**，PNP高边）|
 | P2 | `leds` | LED4 运行灯 = GPIOAO_10（**ACTIVE_HIGH**）；LED1~3 无 GPIO 不写 |
@@ -657,11 +662,11 @@ MT9700 = **单P-MOS 负载开关**（Aerosemi），80mΩ，USB VBUS 供电用。
 9. ✅ **Q15 料号已改为 `MMBT3906 2A(RANGE:100-300)`（PNP）**，网表确认，Emitter→A_3V3 高边成立 → 背光 `GPIO_ACTIVE_LOW`。
 10. ✅ **Q8 保持 `PMBS3904,215-JSM`（NPN）**，Emitter→GND 低边 → 运行灯 `GPIO_ACTIVE_HIGH`。**两颗粒号不同、极性相反。**
 11. ✅ **FPC6 / CN6 已从网表删除**（元件表与网络中均无残留）。
-12. ✅ **两颗 SHT40 均贴装**（U42@`TOUCH_I2C`/GPIOA_14-15、A_3V3；U45@`I2C_AO_S0`/AO 域、`VDDIO_AO18` 1.8V），**不同 I2C 控制器，同地址 0x44 合法共存** → §7.3
+12. ❌ **U45 已从 DTS 移除**（U42@`TOUCH_I2C`/GPIOA_14-15、A_3V3 保留启用）。U45 虽 `bom=yes`，但网表显示 `I2C_AO_S0_SDA/SCL` 各仅 1 个连接点（信号线悬空、无上拉），驱动永远探测不到 → §7.3
 9. ✅ **IR 接收头 = U38(IRM-V838M3-C/TR1) → `IR_IN` → 核心板 `GPIOAO_5`**（复用名 `IR_REMOTE_IN`/`PWMAO_D`）。
 10. ✅ **SPI_B 走 GPIOH 组**：MOSI=GPIOH_4、MISO=GPIOH_5、CS=GPIOH_7、SCLK=GPIOH_6；**GPIOA_3/4 不参与 SPI_B**（当普通 GPIO 用）。
 11. ✅ **触控 I2C = `TOUCH_I2C_SDA/SCL` → CN2-62/64 → `GPIOA_14`(`WORLD_SYNC`/`I2C_EE_M3_SDA`) / `GPIOA_15`(`IR_REMOTE_IN`/`I2C_EE_M3_SCL`)**，线上挂 **U42 SHT40（0x44）** + FPC3 触控座（未贴）。
-12. ⚠ ~~第二颗 SHT40 二选一~~ → **已作废**：网表终版为 **U42/U45 两颗都贴装**（`bom=yes`），分挂`I2C_EE_M3` 与 `I2C_AO_S0` 两个不同 I2C 控制器，同地址 0x44 合法 → §7.3
+12. ⚠ ~~第二颗 SHT40 二选一~~ → **再次作废**：网表逐连接点核对后确认 U45 的 I2C 线**单端悬空**（`I2C_AO_S0_SDA/SCL` 各仅 1 个连接点），U45 已从 DTS 移除 → §7.3
 13. ✅ **A311D 只有 1 个 SDIO 控制器**（`&sd_emmc_a`），另两个是 `sd_emmc_b`(SD卡)/`sd_emmc_c`(eMMC)。AP6256 固定占 `&sd_emmc_a`，无第二个 SDIO 可选。
 14. ✅ **SL6341D(U31) 是 USB3.0 Hub，不需要 A311D 控制**（独立器件，无 SoC GPIO 依赖）。
 15. ✅ **MT9700 的 EN 改为电阻上拉常开**（R158 由 GPIOAO_11 改接 VCC5V），**GPIOAO_11 释放**；MT9700 无 I2C/寄存器 → **DTS 不写任何节点** → §10.1
@@ -706,6 +711,6 @@ MT9700 = **单P-MOS 负载开关**（Aerosemi），80mΩ，USB VBUS 供电用。
 
 | 位号 | 型号 | 用途 |
 |------|------|------|
-| **U45** | SHT40-CD1B-R3 | AO 域温湿度，I2C `I2C_AO_S0`，地址 0x44 |
+| **U45** | SHT40-CD1B-R3 | AO 域温湿度，I2C `I2C_AO_S0`，地址 0x44 ⚠ **信号线网表悬空，DTS 未启用** |
 | **C218** | CL05B104KB54PNC | U45 去耦（VDDIO_AO18/GND）|
 | **Q15** | **MMBT3906 2A(RANGE:100-300)** | **PNP**，背光高边开关（料号已修正）|

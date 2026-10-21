@@ -343,10 +343,18 @@ dtc -I dts -O dtb -o /tmp/out.dtb /tmp/out.dts
 | PCIe PERST# | GPIOA_0 | `ACTIVE_LOW`（R88 4.7k 上拉 A_3V3）|
 | PCIe PEWAKE | GPIOA_1 | R89 4.7k 上拉 |
 | PCIe CLKREQ# | GPIOC_7 | `ACTIVE_LOW`（R90 4.7k 下拉）|
-| U42 SHT40 | GPIOA_14/A15 | `&i2c3` |
-| U45 SHT40 | I2C_AO | `&i2c_AO`，1.8V 域 |
+| U42 SHT40 | GPIOA_14/A15 | `&i2c3` ✅ 已启用 |
 
-两颗 SHT40 同地址 0x44 但挂**两个独立 I2C 控制器**，合法共存；切不可挂同一个 `&i2c`。
+⚠ **U45 (第二颗 SHT40) 已从 DTS 移除**：网表（`netlist-dump/nl_parsed_full.json`）显示
+`I2C_AO_S0_SCL` / `I2C_AO_S0_SDA` **各只有 1 个连接点**（就是 U45 自己）——
+信号线单端悬空，既没接 SoC 的 AO I2C 引脚，也没有上拉电阻。
+对比 U42 所在的 `TOUCH_I2C_SCL/SDA` 直连 CN2-64/62 → GPIOA_15/A14。
+→ 这颗器件收不到 ACK，驱动永远探测不到它，写节点只是误导。
+
+⚠ 同理，**`rtc@51` (hym8563) 也已移除**：本板 495 个元件里没有任何 RTC 芯片，
+该节点是从厂商 BSP 抄来的，本板无对应硬件。
+
+`&i2c_AO` 控制器本身保留（AO 域 I2C 引出到 CN3-69/71），但**不挂任何设备节点**。
 
 ### CPU 供电（照抄 VIM3，已核实引脚）
 
@@ -424,7 +432,7 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 | **真机未验证** | 全部只在 CI 编过，**没在板子上启动过** |
 | `gpio read` 编号 | 51 是按「periphs 先探测」推的。上机若「贴了上拉却读到 LOW」，改 `althea_sel_num=66` 即可，不需重编 |
 | 音频 | **完全不使用音频功能**。DTS 里 TDM/PDM/声卡相关节点（`&tdmif_a`、`&tdmin_a`、`&tdmout_a`、`&toddr_a~c` 等）全部不使能 |
-| 双 SHT40 | U45 在 1.8V 域，实测 I2C 波形待确认 |
+| U45 SHT40 | 已从 DTS 移除 —— 网表显示其 I2C 线单端悬空（无 SoC 端、无上拉），本就探测不到 |
 
 ---
 

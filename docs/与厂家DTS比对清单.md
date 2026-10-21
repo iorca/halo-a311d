@@ -25,7 +25,7 @@
 | **运行灯 LED4** | **GPIOAO_10** | 厂家板可能无此灯 | **新增/覆盖 `&leds` 节点** |
 | **背光** | **GPIOH_8** | 厂家可能用 GPIOAO_* 做背光 | **确认 `lcd-backlight-gpios` 极性** |
 | **SHT40 (U42)** | **GPIOA_14/A15** | 节点名/总线号可能不同 | 核对 I2C 控制器与 PHY 地址 |
-| **SHT40 (U45)** | AO 域 I2C | 厂家 BSP 可能没有这路 | 新增节点 |
+| ~~SHT40 (U45)~~ | AO 域 I2C | **已移除**：网表显示其 I2C 线单端悬空 | 不用新增 |
 | **FUSB340 SEL** | **GPIOA_2** | 厂家可能用于别的功能 | **核对 GPIOA_2 是否被厂商驱动占用** |
 
 ---
@@ -39,7 +39,7 @@
 | **RGMII 延时** | **PCB 等长，2ns 全靠 PHY 内部延迟线** | 实测：TX 组散布 6.5mil(≈1ps)、RX 组 7.3mil(≈1ps)，clock-data 偏移仅 0.14ps vs 需求 2000ps |
 | **phy-mode** | **`rgmii-id`** | 驱动用软件寄存器强制开 TX+RX 双延时；**禁用 `rgmii`（会关掉延时）** |
 | ✅ 无需改硬件 | strap 状态无关 | `rgmii-id` 下驱动覆盖 strap，RXDLY 上下拉均不影响 |
-| **SHT40 地址** | 0x44（固定） | 两颗分挂不同控制器，同址合法 |
+| **SHT40 地址** | 0x44（固定） | U42 走 `&i2c3`；U45 已移除（信号线悬空） |
 | **SDIO reg** | AP6256 在 bus 上 | 查 `ls /sys/bus/mmc/devices/` |
 | **mmc alias** | mmc0=sd_emmc_c(eMMC)、mmc1=sd_emmc_b(SD)、mmc2=sd_emmc_a(SDIO) | 与厂家 BSP alias 对齐 |
 
@@ -62,7 +62,7 @@
 | 项 | 说明 |
 |----|------|
 | **&leds（LED4 运行灯）** | GPIOAO_10，高电平亮 |
-| **SHT40 U45** | AO 域 I2C 温湿度 |
+| ~~SHT40 U45~~ | 已从 DTS 移除 —— 网表显示 I2C 线单端悬空，探测不到 |
 | **SHT40 U42** | EE 域 I2C + FPC3 触控座（触控座未贴）|
 | **lcd-backlight-gpios** | GPIOH_8，PNP 高边，**ACTIVE_LOW** |
 | **lcd-rst / lcd-rs** | GPIOA_3/A4，普通 GPIO |
@@ -124,11 +124,13 @@ dmesg | grep -i spi              # spi_B 应正常 probe
 echo none > /sys/class/leds/run/brightness     # 灭
 echo 1> /sys/class/leds/run/brightness         # 亮
 
-# 7. 两颗 SHT40 都能读到
+# 7. SHT40 能读到（只应有 U42 一条；U45 已移除）
 for i in /sys/bus/i2c/devices/*/; do
   [ -f "$i/name" ] && echo "$i: $(cat $i/name)"
 done | grep -i sht
-#   期望两条 SHT40 记录
+#   期望一条 SHT40 记录（U42 @ &i2c3）
+#   ⚠ 若出现两条，说明 U45 节点仍在 DTS 里 —— 但 U45 信号线网表悬空，
+#     正常情况下根本探测不到，出现即为异常
 
 # 8. WiFi/BT
 ifconfig wlan0                     # 或 nmcli dev
