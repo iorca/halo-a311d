@@ -1,6 +1,7 @@
 # halo-a311d
 
-Amlogic A311D —— MAIN_V0.3 底板 + W400 核心板，mainline 内核与设备树，基于 armbian/build 构建。
+Amlogic A311D —— **Halo 底板**（原理图工程代号 MAIN_V0.3）+ **荣品 PRO-A311D 核心板**
+（厂商内部代号 W400），mainline 内核与设备树，基于 armbian/build 构建。
 
 [![dtb-check](https://github.com/iorca/halo-a311d/actions/workflows/dtb-check.yml/badge.svg)](https://github.com/iorca/halo-a311d/actions/workflows/dtb-check.yml)
 [![kernel-build](https://github.com/iorca/halo-a311d/actions/workflows/kernel.yml/badge.svg)](https://github.com/iorca/halo-a311d/actions/workflows/kernel.yml)
@@ -323,7 +324,6 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 | `gpio read` 编号 | 51 是按「periphs 先探测」推的。上机若「贴了上拉却读到 LOW」，改 `althea_sel_num=66` 即可，不需重编 |
 | 音频 | 网表只有 AL_CH/AR_CH 模拟通道，无 codec/功放 → 不配置声卡 |
 | 双 SHT40 | U45 在 1.8V 域，实测 I2C 波形待确认 |
-| 仓库根目录 | `althaea-mode.hush` / `althaea-mode.scr` 是早期遗留副本，`boot/` 下那份才是准的 |
 
 ---
 
