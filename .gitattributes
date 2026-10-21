@@ -13,6 +13,13 @@ fip/*.py      text eol=lf
 *.sh     text eol=lf
 *.yml    text eol=lf
 
+# 本仓库的 python 脚本（scripts/ 下）
+# ⚠ 与 *.sh 同理：core.autocrlf=true 时工作区会变 CRLF，
+#   而 CI 在 Linux 检出拿到 LF —— 同一份脚本字节数不同，
+#   本地核对大小会得出错误结论。Python 本身能跑 CRLF，
+#   但保持全仓库统一字节更利于比对。
+*.py     text eol=lf
+
 # u-boot 引导脚本（boot.cmd 系列）
 # ⚠⚠ 必须显式指定 eol=lf：core.autocrlf=true 时，工作区会被转成 CRLF，
 #   而 CI 在 Linux 检出拿到 LF —— 同一份文件本地与 CI 字节数不同
