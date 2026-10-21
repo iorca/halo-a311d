@@ -321,7 +321,7 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 |---|---|
 | **真机未验证** | 全部只在 CI 编过，**没在板子上启动过** |
 | `gpio read` 编号 | 51 是按「periphs 先探测」推的。上机若「贴了上拉却读到 LOW」，改 `althea_sel_num=66` 即可，不需重编 |
-| 音频 | 网表只有 AL_CH/AR_CH 模拟通道，无 codec/功放 → 不配置声卡 |
+| 音频 | **完全不使用音频功能**。DTS 里 TDM/PDM/声卡相关节点（`&tdmif_a`、`&tdmin_a`、`&tdmout_a`、`&toddr_a~c` 等）全部不使能 |
 | 双 SHT40 | U45 在 1.8V 域，实测 I2C 波形待确认 |
 
 ---
