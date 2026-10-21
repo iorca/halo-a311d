@@ -362,6 +362,22 @@ jobs:
           done
           exit $fail
 
+      - name: PROBE dt-schema validation
+        # 临时探测：看 dt-validate 对本板 DTB 的真实误报情况
+        run: |
+          set -eu
+          python3 -m pip install --quiet "git+https://github.com/devicetree-org/dt-schema.git@master"
+          dt-validate --version || true
+          cd "$RUNNER_TEMP/kernel"
+          git sparse-checkout add Documentation/devicetree/bindings
+          B="$PWD/Documentation/devicetree/bindings"
+          echo "schema yaml 数量: $(find "$B" -name '*.yaml' | wc -l)"
+          for f in /tmp/meson-halo-a311d.dtb /tmp/meson-halo-a311d-pcie.dtb; do
+            echo "===== dt-validate $f ====="
+            dt-validate -s "$B" -c "$f" 2>&1 | head -40 || true
+            echo "--- 退出码: $? ---"
+          done
+
       - name: Upload DTBs
         uses: actions/upload-artifact@v5
         with:
