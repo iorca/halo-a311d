@@ -397,8 +397,10 @@ jobs:
             echo "::group::dt-schema check $f.dtb"
             # -c: 只校验 compatible 能匹配到 schema 的节点
             # --json-output: 结构化输出，交给 check-dtschema.py 判定
+            # stdout/stderr 一并留档：dt-validate 的原始诊断也上传成
+            # artifact，任何人都能独立复核 check-dtschema.py 的豁免判断
             dt-validate -s "$B" -c --json-output "/tmp/$f.schema.json" \
-              "/tmp/$f.dtb" > /dev/null 2>&1 || true
+              "/tmp/$f.dtb" 2>&1 | tee "/tmp/$f.schema.txt" || true
             if [ ! -f "/tmp/$f.schema.json" ]; then
               echo "::error file=dt/$f.dts::dt-validate 没有产出 JSON 结果"
               fail=1
@@ -414,7 +416,10 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: halo-a311d-dtb
-          path: /tmp/meson-halo-a311d*.dtb
+          path: |
+            /tmp/meson-halo-a311d*.dtb
+            /tmp/meson-halo-a311d*.schema.json
+            /tmp/meson-halo-a311d*.schema.txt
           # ⚠ 默认 warn 意味着「一个都没传上去」也显示绿灯；
           #   上面已经确认文件非空才走到这里，所以必须是硬条件。
           if-no-files-found: error
