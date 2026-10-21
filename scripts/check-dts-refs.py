@@ -146,7 +146,30 @@ def main():
               % (os.path.basename(board), SOC_DTSI, soc_inc[0]))
         fail = 1
 
-    # ---- 检查 2：&label 引用必须有定义 ----
+    # ---- 检查 2：label 名不能含 '-' ----
+    # cpp 会把 label 里的 '-' 当成减号，展开成 `foo - bar: ...`，
+    # dtc 先读到 'foo'，期待 ':' 却看到 '-' → 编译期语法错误：
+    #     Error: xxx.dts:NNN.MM-MM syntax error
+    # 节点名本身带 '-' 没问题（dtc 会重新拼接），但 label 不行。
+    # 上游 147 处 gpio-hog 用例没有一个带 label，就是这个原因。
+    #   (c) 2026-10-21: dt/meson-halo-a311d.dts 的 hog 节点
+    #       `fusb340-sel-hog: fusb340-sel-hog {` 就是这么翻车的。
+    bad_labels = []
+    for line_no, line in enumerate(body.split("\n"), 1):
+        # label 的合法字符集不含 '-'，所以这里要**先允许** '-' 出现在
+        # 候选里，再判断它是否真的含 '-'。否则正则根本匹配不上带连字符的
+        # label，检查就成了永远绿。
+        m = re.match(r"\s*([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*[A-Za-z_@]", line)
+        if m and "-" in m.group(1):
+            bad_labels.append((line_no, m.group(1), line.strip()))
+    for line_no, lab, text in bad_labels:
+        print("::error file=%s:%d::label `%s` 含连字符 —— cpp 会把它当减号拆开，"
+              "dtc 报语法错误（节点名可以有 '-'，label 不行）"
+              % (os.path.basename(board), line_no, lab))
+        print("::error::   %s" % text)
+        fail = 1
+
+    # ---- 检查 3：&label 引用必须有定义 ----
     missing = sorted(board_refs - all_labels)
     if missing:
         print("::error file=%s::引用了未定义的 label：%s"

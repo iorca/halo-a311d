@@ -581,7 +581,18 @@
  *   要在运行期改 SEL，只能靠方案 C（unbind/bind 控制器）或干脆重编 DTB。
  */
 &gpio {
-	fusb340-sel-hog: fusb340-sel-hog {
+	/* ⚠⚠ 节点名**不要**加 label！
+	 *   写成 `fusb340-sel-hog: fusb340-sel-hog {` 会编译失败：
+	 *     Error: meson-halo-a311d.dts:584.17-18 syntax error
+	 *   原因：cpp 会把 label 里的 '-' 当成减号，展开成
+	 *     `fusb340 - sel - hog: fusb340 - sel - hog {`
+	 *   dtc 先读到 'fusb340'，期待 ':' 却看到 '-' → 语法错误。
+	 *   （节点名本身带 '-' 没问题，dtc 会重新拼接；
+	 *     但 'label: node' 形式下 label 里的 '-' 会被 cpp 拆开。）
+	 *   上游 147 处 gpio-hog 用例**没有一个带 label**，本处照办。
+	 *   可读名字放 line-name。
+	 */
+	fusb340-sel-hog {
 		gpio-hog;
 		gpios = <GPIOA_2 GPIO_ACTIVE_HIGH>;
 		input;
