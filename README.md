@@ -159,9 +159,34 @@ GPIOA_2 ──┬── R86(0Ω)  ──→ U28.6 (FUSB340 SEL)
 **必须二选一，不能都不贴**（FUSB340 规格书：*"must not float"*）；两颗都贴则被分压成
 1.65V，属未定义电平。
 
-**SEL 由电阻决定，SoC 不许驱动** —— 两个 dts 变体的 `fusb340_hog` 都**不写
-`output-low` / `output-high`**（不写就是 input hog）。SoC 一强驱就把 strap 电平盖掉，
-读出来永远是自己的输出值。
+**SEL 由电阻决定，SoC 不许驱动** —— 两个 dts 变体都在 `&gpio`（periphs bank）下
+定义了 `fusb340_sel_hog` hog，状态属性显式写 `input`：
+
+```dts
+&gpio {
+    fusb340_sel_hog: fusb340_sel_hog {
+        gpio-hog;                              /* 必需（bool） */
+        gpios = <GPIOA_2 GPIO_ACTIVE_HIGH>;    /* 必需 */
+        input;                                 /* 必须三选一：input/output-low/output-high */
+        line-name = "FUSB340_SEL";
+    };
+};
+```
+
+SoC 一强驱（写 `output-*`）就把 strap 电平盖掉，读出来永远是自己的输出值。
+
+⚠⚠ **两个容易踩的坑**（本仓库都踩过）：
+
+1. **hog 必须是 gpio-controller 的子节点**。放在根节点下内核根本不会扫它
+   （`drivers/gpio/gpiolib-of.c: of_gpiochip_scan_gpios()` 只遍历
+   `dev_of_node(&chip->gpiodev->dev)` 的子节点）。
+2. **状态属性必须显式写一个**。`input` / `output-low` / `output-high` 三选一，
+   一个都不写时内核会打印
+   `"no hogging state specified, bailing out"` 并**跳过该 hog** ——
+   **不是"自动变成 input"**。
+
+⚠ 另外注意：input hog 会让该线被内核标记为 REQUESTED，
+**userspace 不能再 export 读写它**（不能 `echo` 到 `/sys/class/gpio/...`）。
 
 ### 软件链路（不是 extlinux）
 
@@ -239,9 +264,38 @@ althea: fdtfile=amlogic/meson-halo-a311d-pcie.dtb
 缺了会怎样：`GPIOAO_10` 未定义 → 预处理把 `>` 当比较运算符 → 报错指向 `GPIOAO_10` 那一列，
 完全看不出真实原因。（VIM3 靠 `meson-khadas-vim3.dtsi` 间接引入，板级文件没这层依赖。）
 
-### 2. `default-trigger` 不能写 `linux,default-trigger`
+### 2. LED 的 trigger 属性必须写 `linux,default-trigger`
 
-`linux,` 前缀是 binding 文档的写法，dtc 不认。
+⚠⚠ **本条曾写反过**（原文写的是"不能写 `linux,default-trigger`"），已更正。
+
+`linux,` 前缀**不是** binding 文档的写法而已 —— 它就是内核实际读的属性名：
+
+```dts
+run_led {
+    label = "run";
+    gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+    linux,default-trigger = "heartbeat";   /* ✅ 必须带 linux, 前缀 */
+    default-state = "on";                  /* ✅ 不是 "state" */
+};
+```
+
+源码依据（v6.18）：
+
+| 属性 | 谁读 | 行号 |
+|---|---|---|
+| `linux,default-trigger` | `drivers/leds/led-class.c` | 504 |
+| `default-state` | `drivers/leds/led-core.c` → `led_init_default_state_get()` | 607 |
+| plain `default-trigger` | **无人读** | — |
+| plain `state` | **无人读** | — |
+
+- `drivers/leds/leds-of.c` 已在 6.18 **删除**（`https://github.com/torvalds/linux` 全树
+  搜索 `drivers/leds/leds-of.c` 返回 404），gpio-leds 走的是 LED core 的
+  `fwnode_property_read_string(init_data->fwnode, "linux,default-trigger", ...)`。
+- 写成 plain `default-trigger` → 属性被**静默忽略** → 灯常亮不闪，且**编译期无任何报错**。
+- 写 `state = "on"` 同样无效（真正读的是 `default-state`）。
+
+> dtc 不报错 ≠ 内核会读。属性名写错属于"编译通过、运行不生效"，
+> CI 的语法检查抓不到，只能靠对着内核源码核对。
 
 ### 3. 不要 include `<dt-bindings/regulator/fixed-regulator.h>`
 

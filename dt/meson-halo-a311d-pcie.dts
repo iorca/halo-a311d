@@ -2,14 +2,16 @@
 /*
  * MAIN_V0.3 — Althea A311D board 【PCIe 模式变体】
  *
- * 本文件是 meson-althaea-a311d.dts 的 PCIe 变体，差异：
+ * 本文件是 dt/meson-halo-a311d.dts 的 PCIe 变体，差异：
  *   &pcie status="okay" + reset-gpios(GPIOA_0 PERST#)
  *   &usb  status="disabled"
- *   FUSB340 SEL 需为 HIGH（见本文件末尾 PCIe 说明段）
  *
- * 用法：/boot/extlinux/extlinux.conf 里改 fdt 行冷切换
- *     LABEL Althea-USB3 : FDT /boot/meson-althaea-usb3.dtb
- *     LABEL Althea-PCIe : FDT /boot/meson-althaea-pcie.dtb
+ * ⚠ 切换方式：**不是 extlinux**。本板 U-Boot 在 boot 前读 GPIOA_2 的
+ *   strap 电平，据此 setenv fdtfile 选对应 dtb（冷切换）。
+ *   镜像里的 dtb 路径形如：
+ *     dtb/amlogic/meson-halo-a311d.dtb        ← USB3.0 变体
+ *     dtb/amlogic/meson-halo-a311d-pcie.dtb   ← 本文件（PCIe 变体）
+ *   详见 docs/冷切换使用说明.md 与 README「软件链路」一节。
  *
  * 派生自 Khadas VIM3 (meson-g12b-a311d-khadas-vim3.dts)
  * 骨架来源: mainline kernel 6.18.52
@@ -184,6 +186,13 @@
 	 *      Q8 BASE ← R110(100Ω) ← GPIOAO_10
 	 * NPN 低边开关 → 高电平点亮 → GPIO_ACTIVE_HIGH
 	 * AO 域 can_sleep=false → 内核 heartbeat 可在 atomic 上下文工作
+	 *
+	 * ⚠⚠ 属性名必须是 **linux,default-trigger**（带 `linux,` 前缀），
+	 *   默认状态属性是 **default-state**（不是 state）。
+	 *   依据：drivers/leds/led-class.c:504 读 "linux,default-trigger"；
+	 *         drivers/leds/led-core.c:607 读 "default-state"；
+	 *         plain "default-trigger" 与 "state" 内核均无人读取。
+	 *   详见 dt/meson-halo-a311d.dts 同一处的完整注释。
 	 */
 	leds {
 		compatible = "gpio-leds";
@@ -192,7 +201,7 @@
 			label = "run";
 			gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
-			state = "on";
+			default-state = "on";
 		};
 	};
 
@@ -203,24 +212,10 @@
 	 * GPIOA_1  = PCIE_PEWAKE    4.7k 上拉 A_3V3(R89) + 0Ω(R91) → CN2-32
 	 * GPIOC_7  = PCIE_CLKREQ_N  4.7k 下拉 GND(R90)  + 0Ω(R93) → CN2-28，低有效
 	 * GPIOA_2  = FUSB340 SEL    R86(0Ω) 到 U28.6，R85/R87 4.7k 下拉 → 默认 USB3.0
+	 *
+	 * ⚠⚠ FUSB340_SEL 的 hog **不能**放在根节点（见文件末尾 &gpio 段）。
+	 *   下面只留注释说明，实体节点见 &gpio { fusb340_sel_hog { ... } }。
 	 */
-	fusb340_hog {
-		gpio-hog-controller-gpios =
-			<&gpio GPIOA_2 GPIO_ACTIVE_HIGH>;
-		/* ⚠ 不写 output-low / output-high —— **本脚是硬件 strap，SoC 不许驱动**。
-		 *
-		 *   ⚠⚠ 这里走过一段弯路，记下来别再犯:
-		 *   1. 最初写 output-low（带 TODO「本变体 SEL 需 HIGH，让 U-Boot 拉高」）
-		 *   2. 我一度改成 output-high，想与 U-Boot 保持一致
-		 *   3. **两种都错**：SoC 一驱动就把 strap 电平盖掉了 —— 而 SEL 电平是
-		 *      板上**选贴上下拉电阻**决定的，U-Boot 是**读**它来决定 boot 哪个 dtb。
-		 *      SoC 强驱 = 读出来的永远是自己的输出值，切换逻辑失效。
-		 *
-		 * 正确做法：不写 output-* → hog 变成 **input**，只占位不驱动，
-		 *   SEL 电平由电阻决定，U-Boot 读它 → 本变体(PCIe)在 SEL=1 时被选中。
-		 */
-		line-name = "FUSB340_SEL";
-	};
 
 	/* ================================================================
 	 * 红外接收 —— U38 IRM-V838M3-C/TR1 → GPIOAO_5 (AO 域)
@@ -420,8 +415,8 @@
  * 【三个可选方案】
  *
  *   方案 A（推荐，最稳）：**两个DTB，开机时选**
- *     编译 meson-althaea-usb3.dtb 与 meson-althaea-pcie.dtb
- *     切换时改 bootargs / extlinux.conf 里的 fdt，重启生效
+ *     编译 amlogic/meson-halo-a311d.dtb 与 amlogic/meson-halo-a311d-pcie.dtb
+ *     切换时改 U-Boot 的 fdtfile（**不是 extlinux**，见 docs/冷切换使用说明.md），重启生效
  *     → 彻底规避 PHY 归属问题，无热插拔风险
  *
  *   方案 B：DTB 里 pcie 与 usb **同时 status="okay"**
@@ -502,6 +497,44 @@
  *   背光 EN     = GPIOH_8  (Q15 MMBT3906 PNP 高边 → 拉低导通 → 亮)
  *   → 背光随下面 leds 节点的 run_led 一并管理；RST/RS 由屏驱动或用户态控制。
  */
+
+/* ==================================================================
+ * GPIO —— periphs bank（&gpio = meson-g12-common.dtsi 的 bank@40）
+ * ==================================================================
+ * GPIOA_2 = FUSB340 SEL strap
+ *
+ * ⚠⚠ gpio-hog **必须**是 gpio-controller 的**子节点**：
+ *   内核只在自己的 gpio controller 节点下扫 hog
+ *   (drivers/gpio/gpiolib-of.c: of_gpiochip_scan_gpios() 遍历
+ *    dev_of_node(&chip->gpiodev->dev) 的子节点)。
+ *   挂在根节点下 → 内核根本不会看它。
+ *
+ * ⚠⚠ 属性名是 gpio-hog / gpios / input，
+ *   之前的 `gpio-hog-controller-gpios` 上游**不存在**。
+ *   且 input / output-low / output-high **必须显式三选一**，
+ *   不写状态属性 = 内核报 "no hogging state specified, bailing out"
+ *   并**跳过该 hog**（不是"自动变 input"）。
+ *
+ * 【为什么用 input 而非 output-low/output-high】
+ *   SEL 电平由板上**选贴的上下拉电阻**决定，U-Boot 读它选 dtb。
+ *   SoC 强驱会把 strap 电平盖掉 → 读出来永远是自己的输出值，切换逻辑失效。
+ *   → input hog：只占位不驱动。
+ *
+ * 【input hog 的副作用】
+ *   gpiod_hog() 走 gpiochip_request_own_desc()，该线被标记 REQUESTED
+ *   → userspace 无法再 export 这条线（不能 echo 读写）。
+ *   运行期改 SEL 只能靠方案 C（unbind/bind 控制器）或重编 DTB。
+ *
+ * 完整推导见 dt/meson-halo-a311d.dts 的同名段。
+ */
+&gpio {
+	fusb340_sel_hog: fusb340_sel_hog {
+		gpio-hog;
+		gpios = <GPIOA_2 GPIO_ACTIVE_HIGH>;
+		input;
+		line-name = "FUSB340_SEL";
+	};
+};
 
 /* ==================================================================
  * I2C —— 两颗 SHT40
@@ -713,20 +746,26 @@
  *   只能改变物理通路，SoC 内部仍按 dtb 写死的一侧枚举 → 两侧不一致失效。
  *
  * 【切换方案】**冷切换（重启选 DTB），最稳**
- *   方式一（推荐）：编译两个 DTB，开机改 extlinux.conf 的 fdt 行
- *       LABEL Althea-USB3 : FDT /boot/meson-althaea-usb3.dtb   ← &usb  okay
- *       LABEL Althea-PCIe : FDT /boot/meson-althaea-pcie.dtb   ← &pcie okay
+ *   方式一（推荐）：编译两个 DTB，由 U-Boot 按 GPIOA_2 电平选 fdtfile
+ *       amlogic/meson-halo-a311d.dtb        ← &usb  okay
+ *       amlogic/meson-halo-a311d-pcie.dtb   ← &pcie okay
+ *       ⚠ 本板**不是 extlinux**（SRC_EXTLINUX 未开），切换靠
+ *         userpatches/bootscripts/boot-meson64.cmd 里的注入块
+ *         （gpio read → setenv fdtfile），详见 docs/冷切换使用说明.md
  *   方式二：单 DTB + U-Boot 脚本读 GPIOA_2 电平动态注入
  *       if gpio get 2; then fdt set /pcie@fc000000 status "okay";
  *                            fdt set /usb@fc00000 status "disabled";
  *                       else   fdt set /usb@fc00000 status "okay";
  *                            fdt set /pcie@fc000000 status "disabled"; fi
  *
- *   GPIOA_2 已用 gpio-hog 导出（line-name="FUSB340_SEL", output-low），
- *   运行期可 echo 读写，但**不保证切换成功**（PHY 归属问题）。
+ *   GPIOA_2 用 gpio-hog 占位（&gpio 下的 fusb340_sel_hog，**input** hog，
+ *   line-name="FUSB340_SEL"），只占位不驱动 strap。
+ *   ⚠ input hog 会把该线标记为内核 REQUESTED → userspace **不能**
+ *     再 export 读写它（不能 echo）。运行期切 SEL 只能靠方案 C
+ *     （unbind/bind 控制器）或重编 DTB。
  *
  * 【当前配置】本文件为 PCIe 模式：&pcie okay / &usb disabled
- *   USB3.0 变体见meson-althaea-a311d.dts（&usb okay / &pcie disabled）
+ *   USB3.0 变体见 dt/meson-halo-a311d.dts（&usb okay / &pcie disabled）
  */
 /* PCIe 模式启用（本变体）
  * reset: M.2 PERST# = GPIOA_0，4.7k 上拉 A_3V3，低有效
@@ -736,9 +775,14 @@
 	status = "okay";
 	reset-gpios = <&gpio GPIOA_0 GPIO_ACTIVE_LOW>;
 
-	/* 若内核/设备支持从 PCIe 唤醒，再启用以下两项：
-	wakeup-gpios = <&gpio GPIOA_1 GPIO_ACTIVE_HIGH>;  * PEWAKE (4.7k上拉)
-	wakeup-source;                                     * CLKREQ# (GPIOC_7, 4.7k下拉)
+	/* ⚠ 从 PCIe 唤醒（PEWAKE / CLKREQ#）**当前无法在 DT 里启用**：
+	 *   dw-pcie 驱动根本不读 wakeup-gpios（v6.18 全树 drivers/pci 下
+	 *   0 处引用），PCI 绑定文档也没列这个属性。
+	 *   → 写上去也只是被忽略，不会报错，但会误导后来人，故保持注释。
+	 *
+	 * 若内核/设备支持从 PCIe 唤醒，再启用以下两项：
+	 *   wakeup-gpios = <&gpio GPIOA_1 GPIO_ACTIVE_HIGH>;  // PEWAKE (4.7k上拉)
+	 *   wakeup-source;                                     // CLKREQ# (GPIOC_7, 4.7k下拉)
 	 */
 };
 
