@@ -109,44 +109,55 @@ fi
 # =============================================================================
 # halo-a311d USB3.0 / PCIe mode select  (BOARD CUSTOM --- not upstream)
 #
-# Hardware facts (MAIN_V0.3 netlist, see dt/meson-halo-a311d*.dts):
-#   GPIOA_2 = FUSB340 SEL, 0R to U28.6, R85/R87 4.7k PULL-DOWN.
-#   SEL is DRIVEN by the SoC. There is no jumper/strap to sense.
-#   => the mode is a CHOICE, not a measurement. Reading SEL is meaningless
-#      (it is held low by the SoC / the pulldowns).
+# GPIOA_2 = FUSB340 SEL. The board carries footprints for BOTH a pull-up and a
+# pull-down; the level is decided by WHICH RESISTOR IS POPULATED:
+#     pull-down populated -> SEL = 0 -> USB3.0  (default, R85/R87 4.7k)
+#     pull-up   populated -> SEL = 1 -> PCIe
 #
-# Why the dtb has to change too:
-#   &pcie and &usb share usb3_pcie_phy; PHY ownership is baked in at dtb
-#   compile time. Two variants exist:
-#     amlogic/meson-halo-a311d.dtb        USB3.0  (&usb ok, &pcie disabled), SEL LOW
-#     amlogic/meson-halo-a311d-pcie.dtb   PCIe,                              SEL HIGH
-#   => u-boot must do BOTH: pick the dtb AND drive GPIOA_2 to match.
+# So SEL is a HARDWARE STRAP and u-boot only READS it. Nothing here drives the
+# pin, and the kernel dtb deliberately declares an input hog (no output-low /
+# output-high) so the SoC never overpowers the strap.
 #
-# Usage -- set in /boot/armbianEnv.txt:
-#     althea_mode=pcie      # or usb3 (default)
+# Why the dtb has to change too, not just the mux:
+#   &pcie and &usb share usb3_pcie_phy and PHY ownership is baked in at dtb
+#   compile time, so flipping the mux alone does nothing -- you must boot the
+#   matching dtb.
+#
+# Reading: `gpio read <var> <pin>` (needs CONFIG_CMD_GPIO + CONFIG_CMD_GPIO_READ).
+#   cmd/gpio.c:279-280 -> gpio_direction_input() then env_set_ulong(var, 0|1).
+#   Pin must be given as BANK_PIN ("GPIOA_2"); the DT line-name "FUSB340_SEL"
+#   does NOT resolve here because u-boot ships the VIM3 control dtb.
+#
+# Optional override in /boot/armbianEnv.txt: althea_mode=pcie|usb3
+#   WARNING: that only changes WHICH DTB is loaded. The mux is fixed by the
+#   resistor, so forcing the wrong value gives you a PCIe-configured kernel on
+#   USB3-wired hardware.
 # =============================================================================
 setenv althea_sel_pin "GPIOA_2"
 setenv althea_fdt_usb3 "amlogic/meson-halo-a311d.dtb"
 setenv althea_fdt_pcie "amlogic/meson-halo-a311d-pcie.dtb"
 
-if test -z "${althea_mode}"; then setenv althea_mode "usb3"; fi
-echo "althea: mode=${althea_mode} sel_pin=${althea_sel_pin}"
+gpio read althea_sel ${althea_sel_pin}
+
+if test -z "${althea_sel}"; then
+	echo "althea: WARNING: cannot read ${althea_sel_pin} (CONFIG_CMD_GPIO_READ enabled?)"
+	echo "althea: falling back to USB3.0 dtb"
+	setenv althea_sel "0"
+fi
+echo "althea: SEL(${althea_sel_pin}) = ${althea_sel}"
 
 if test "${althea_mode}" = "pcie"; then
+	echo "althea: override althea_mode=pcie (mux still set by the resistor!)"
 	setenv fdtfile "${althea_fdt_pcie}"
-	if gpio set ${althea_sel_pin}; then
-		echo "althea: ${althea_sel_pin} -> HIGH (PCIE)"
-	else
-		echo "althea: WARNING: gpio set ${althea_sel_pin} failed - SEL not driven high, PCIe will not work"
-		echo "althea: check that CONFIG_CMD_GPIO is enabled in u-boot"
-	fi
-else
+elif test "${althea_mode}" = "usb3"; then
+	echo "althea: override althea_mode=usb3"
 	setenv fdtfile "${althea_fdt_usb3}"
-	if gpio clear ${althea_sel_pin}; then
-		echo "althea: ${althea_sel_pin} -> LOW (USB3.0)"
-	else
-		echo "althea: WARNING: gpio clear ${althea_sel_pin} failed"
-	fi
+elif test "${althea_sel}" = "1"; then
+	echo "althea: SEL=HIGH -> PCIe"
+	setenv fdtfile "${althea_fdt_pcie}"
+else
+	echo "althea: SEL=LOW -> USB3.0"
+	setenv fdtfile "${althea_fdt_usb3}"
 fi
 echo "althea: fdtfile=${fdtfile}"
 

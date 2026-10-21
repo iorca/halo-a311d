@@ -196,7 +196,16 @@
 	fusb340_hog {
 		gpio-hog-controller-gpios =
 			<&gpio GPIOA_2 GPIO_ACTIVE_HIGH>;
-		output-low;
+		/* ⚠ 不写 output-low / output-high —— **本脚是硬件 strap，SoC 不许驱动**。
+		 *   板上 SEL 预留了上拉/下拉电阻位，靠**选贴哪颗**决定电平：
+		 *       贴下拉 → SEL=0 → USB3.0（默认）
+		 *       贴上拉 → SEL=1 → PCIe
+		 *   U-Boot 在 boot 前 `gpio read` 这个脚，据此选 dtb
+		 *   （见 boot/boot-meson64.cmd 注入块）。
+		 *   如果这里写了 output-* ，SoC 会强驱该脚，把 strap 电平盖掉 —— 读出来
+		 *   永远是 SoC 自己的输出值，切换逻辑直接失效。
+		 *   不写 output-* 时 gpio-hog 就是 **input** hog，只占位不驱动。
+		 */
 		line-name = "FUSB340_SEL";
 	};
 

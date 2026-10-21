@@ -2,44 +2,47 @@
 #
 # ⚠ 这份是**参考副本**：真正生效的逻辑在 boot/boot-meson64.cmd 里
 #   （部署成 userpatches/bootscripts/boot-meson64.cmd，由 armbian 编进 boot.scr）。
-#   本文件仍会被放进镜像的 /boot，方便串口上手改，但 u-boot **不会主动 source 它**。
+#   本文件仍会被放进镜像的 /boot 方便串口上查看，但 u-boot **不会主动 source 它**。
 #
-# ✅ 2026-10-21 修正了三处硬错误:
-#   1. 变量写错: setenv fdt → 应为 **fdtfile**
-#      （armbian 的 boot.cmd 用 `load ... dtb/${fdtfile}` 取 dtb）
-#   2. 路径写错: /boot/meson-halo-a311d.dtb → 应为 **amlogic/meson-halo-a311d.dtb**
-#      （相对 boot/dtb/，且 armbian 的 BOOT_FDT_FILE 就是这个形式）
-#   3. 思路写错: `gpio read althea_sel FUSB340_SEL` —— SEL 是 **SoC 驱动的输出**，
-#      板上 R85/R87 4.7k 下拉，没有可读的拨码/strap，读它永远是 LOW。
-#      模式是「选择」不是「侦测」→ 改为从 althea_mode 取值，并**驱动** GPIOA_2。
+# 硬件前提（主人 2026-10-21 确认）:
+#   GPIOA_2 = FUSB340 SEL，板上**预留了上拉和下拉两个电阻位**，
+#   由**选贴哪一颗**决定电平 —— 这是硬件 strap，不是 SoC 输出。
+#       贴下拉 → SEL = 0 → USB3.0（默认）
+#       贴上拉 → SEL = 1 → PCIe
+#   ⇒ 两个 dts 变体的 fusb340_hog 都**不能写 output-low / output-high**，
+#     否则 SoC 强驱会把 strap 电平盖掉，读出来永远是 SoC 自己的输出值。
 #
-# 用法（在 /boot/armbianEnv.txt 里写，重启生效）:
-#     althea_mode=pcie      # 或 usb3（默认）
+# 为什么要换 dtb（光切 mux 不够）:
+#   &pcie 与 &usb 共用 usb3_pcie_phy，PHY 归属编译期定死，必须 boot 对应变体。
+#
+# 修正记录:
+#   - 变量名 setenv fdt → **fdtfile**（armbian 用 `load ... dtb/${fdtfile}`）
+#   - 路径 /boot/meson-halo-a311d.dtb → **amlogic/meson-halo-a311d.dtb**
+#   - 引脚 FUSB340_SEL → **GPIOA_2**（u-boot 用 VIM3 设备树，解析不了 line-name）
+#   - 2026-10-21 方向订正：我一度改成「由 u-boot 驱动 SEL」，**这是错的**；
+#     SEL 由电阻决定，u-boot 只**读**它。
 
-echo "MAIN_V0.3 mode select (althea_mode=${althea_mode})"
+echo "MAIN_V0.3 mode select by FUSB340 SEL (strap)"
 
 setenv althea_sel_pin "GPIOA_2"
 setenv althea_fdt_usb3 "amlogic/meson-halo-a311d.dtb"
 setenv althea_fdt_pcie "amlogic/meson-halo-a311d-pcie.dtb"
 
-if test -z "${althea_mode}"; then setenv althea_mode "usb3"; fi
+gpio read althea_sel ${althea_sel_pin}
 
-if test "${althea_mode}" = "pcie"; then
-    echo "mode=pcie -> SEL HIGH + PCIe dtb"
+if test -z "${althea_sel}"; then
+    echo "WARNING: cannot read ${althea_sel_pin} (CONFIG_CMD_GPIO_READ enabled?)"
+    echo "falling back to USB3.0 dtb"
+    setenv althea_sel "0"
+fi
+echo "SEL(${althea_sel_pin}) = ${althea_sel}"
+
+if test "${althea_sel}" = "1"; then
+    echo "SEL=HIGH -> PCIe"
     setenv fdtfile ${althea_fdt_pcie}
-    if gpio set ${althea_sel_pin}; then
-        echo "GPIOA_2 -> HIGH"
-    else
-        echo "WARNING: gpio set ${althea_sel_pin} failed (CONFIG_CMD_GPIO?)"
-    fi
 else
-    echo "mode=usb3 -> SEL LOW + USB3.0 dtb"
+    echo "SEL=LOW  -> USB3.0"
     setenv fdtfile ${althea_fdt_usb3}
-    if gpio clear ${althea_sel_pin}; then
-        echo "GPIOA_2 -> LOW"
-    else
-        echo "WARNING: gpio clear ${althea_sel_pin} failed (CONFIG_CMD_GPIO?)"
-    fi
 fi
 
 echo "fdtfile = ${fdtfile}"

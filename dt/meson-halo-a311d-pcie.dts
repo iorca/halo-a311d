@@ -205,14 +205,18 @@
 	fusb340_hog {
 		gpio-hog-controller-gpios =
 			<&gpio GPIOA_2 GPIO_ACTIVE_HIGH>;
-		output-high;     /* ✅ 本变体为 PCIe 模式 → SEL 必须 HIGH。
-		                 *
-		                 * ⚠ 原来是 output-low（带 TODO 说要 U-Boot 拉高），
-		                 *   但 gpio-hog 在内核启动时**会重新覆盖** u-boot 设的电平：
-		                 *   u-boot 拉高 → 内核 hog output-low 又拉回去 → PCIe 不通。
-		                 *   所以这里必须与 boot.cmd 的选择保持一致，改成 output-high。
-		                 *   （usb3 变体保持 output-low，两者互补。）
-		                 */
+		/* ⚠ 不写 output-low / output-high —— **本脚是硬件 strap，SoC 不许驱动**。
+		 *
+		 *   ⚠⚠ 这里走过一段弯路，记下来别再犯:
+		 *   1. 最初写 output-low（带 TODO「本变体 SEL 需 HIGH，让 U-Boot 拉高」）
+		 *   2. 我一度改成 output-high，想与 U-Boot 保持一致
+		 *   3. **两种都错**：SoC 一驱动就把 strap 电平盖掉了 —— 而 SEL 电平是
+		 *      板上**选贴上下拉电阻**决定的，U-Boot 是**读**它来决定 boot 哪个 dtb。
+		 *      SoC 强驱 = 读出来的永远是自己的输出值，切换逻辑失效。
+		 *
+		 * 正确做法：不写 output-* → hog 变成 **input**，只占位不驱动，
+		 *   SEL 电平由电阻决定，U-Boot 读它 → 本变体(PCIe)在 SEL=1 时被选中。
+		 */
 		line-name = "FUSB340_SEL";
 	};
 

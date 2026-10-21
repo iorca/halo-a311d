@@ -147,10 +147,12 @@ echo "✓ customize-image.sh  (overlay -> /boot)"
 #      "Deploying boot script .../config/bootscripts/boot-meson64.cmd -> /boot/boot.cmd"
 #    armbian-bsp-cli 的 postinst 会用 mkimage 把它编成 /boot/boot.scr。
 #
-#    ⚠ 只改 boot.cmd 不够：还要
-#      - board conf 打开 CONFIG_CMD_GPIO（否则没有 gpio 命令）
-#      - dt/meson-halo-a311d-pcie.dts 的 fusb340_hog 改成 output-high
-#        （内核 gpio-hog 会覆盖 u-boot 设的电平，两边必须一致）
+#    ⚠ 只放 boot.cmd 不够，还要两处配合：
+#      - board conf 打开 CONFIG_CMD_GPIO + **CONFIG_CMD_GPIO_READ**
+#        （否则没有 gpio 命令 / 没有 gpio read，读不到 strap）
+#      - 两个 dts 变体的 fusb340_hog **不能写 output-low / output-high**
+#        —— SEL 是板上选贴上下拉电阻决定的硬件 strap，SoC 一强驱就把电平盖掉，
+#           读出来永远是 SoC 自己的输出值，切换逻辑直接失效。
 # -----------------------------------------------------------------------------
 BOOT_SRC="$REPO_ROOT/boot/boot-meson64.cmd"
 mkdir -p "$UP/bootscripts"
