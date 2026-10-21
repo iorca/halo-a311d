@@ -362,21 +362,53 @@ jobs:
           done
           exit $fail
 
-      - name: PROBE dt-schema validation
-        # 临时探测：看 dt-validate 对本板 DTB 的真实误报情况
+      - name: Validate DTBs against the kernel device-tree schemas
+        # ⚠ 对应报告第 5 节建议的最后一条护栏（dtbs_check）。
+        #
+        # 内核自带一套 device-tree schema 校验（dt-schema，仓库
+        # devicetree-org/dt-schema），上游用它跑 `make dtbs_check`。
+        # 它抓的是「属性名写错 / 必填属性缺失 / 极性写反」这类
+        # **编译期完全查不出来、运行期才暴露**的问题 ——
+        # 正是本仓库反复踩的坑（LED 的 trigger 属性名、gpio-hog 的属性名与位置）。
+        #
+        # 为什么不直接用上游的 `make dtbs_check`：
+        #   它要求完整内核树 + defconfig + 全部 schema，对本仓库太重。
+        #   这里用 dt-validate 直接跑编出来的 dtb，效果等价、成本低得多。
+        #
+        # 为什么需要配套的 check-dtschema.py：
+        #   dt-validate 直接跑会报两类噪音 ——
+        #     1) 本板根节点的自研 ID `althea,a311d` 上游没有 schema
+        #        → 根节点 compatible 匹配失败，一次报几十行
+        #     2) 上游 SoC 节点的 schema 覆盖不全
+        #   脚本只豁免这两类，其余 error 一律判失败。
         run: |
           set -eu
-          python3 -m pip install --quiet "git+https://github.com/devicetree-org/dt-schema.git@master"
-          dt-validate --version || true
+          python3 -m pip install --quiet \
+            "git+https://github.com/devicetree-org/dt-schema.git@master"
+          dt-validate --version
+
           cd "$RUNNER_TEMP/kernel"
           git sparse-checkout add Documentation/devicetree/bindings
           B="$PWD/Documentation/devicetree/bindings"
           echo "schema yaml 数量: $(find "$B" -name '*.yaml' | wc -l)"
-          for f in /tmp/meson-halo-a311d.dtb /tmp/meson-halo-a311d-pcie.dtb; do
-            echo "===== dt-validate $f ====="
-            dt-validate -s "$B" -c "$f" 2>&1 | head -40 || true
-            echo "--- 退出码: $? ---"
+
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::dt-schema check $f.dtb"
+            # -c: 只校验 compatible 能匹配到 schema 的节点
+            # --json-output: 结构化输出，交给 check-dtschema.py 判定
+            dt-validate -s "$B" -c --json-output "/tmp/$f.schema.json" \
+              "/tmp/$f.dtb" > /dev/null 2>&1 || true
+            if [ ! -f "/tmp/$f.schema.json" ]; then
+              echo "::error file=dt/$f.dts::dt-validate 没有产出 JSON 结果"
+              fail=1
+            elif ! python3 "$GITHUB_WORKSPACE/scripts/check-dtschema.py" \
+                 "/tmp/$f.schema.json"; then
+              fail=1
+            fi
+            echo "::endgroup::"
           done
+          exit $fail
 
       - name: Upload DTBs
         uses: actions/upload-artifact@v5
