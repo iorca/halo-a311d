@@ -18,10 +18,24 @@ Amlogic A311D —— **Halo 底板** + **荣品 PRO-A311D 核心板**，mainline
 | `kernel` | main | ✅ | run `39462193272`，产物 `halo-a311d-kernel` 71 MB，两个 dtb 齐全 |
 | `uboot` | gxlimg | ✅ | run `39457685081`，`linux-u-boot-halo-a311d-current`（主线 u-boot v2026.04 重打包进厂商 FIP）|
 | `firmware` | 两分支 | ✅ | run `39456750049`，164 MB |
-| `build` | gxlimg | ✅ | run `39463356202`，Runtime 54:17，**1.68 GiB 镜像**，chroot 定制脚本生效 |
+| `build` | gxlimg | ✅ | run `39547492248`，Runtime 54:37，**1.68 GiB 镜像**，`boot.scr` 已含冷切换逻辑 |
 | `rootfs` | — | — | 未单独跑；`build` 已含 rootfs 环节 |
 
 ⚠ **全部只在 CI 里验证过「编得出来 + 文件都在」，真机启动仍未验证。** 见文末已知限制。
+
+### Release 发布：只认 tag
+
+`Publish GitHub Release` 步骤带 `if: github.ref_type == 'tag'`，**手动 dispatch 永远不会发 Release**
+（步骤显示 skipped，这是设计行为不是失败）。发版必须推 tag：
+
+```bash
+git checkout gxlimg-full-mainline-uboot
+git tag v2026.10.21-gxlimg
+git push origin v2026.10.21-gxlimg
+```
+
+推 tag 时 `TARGET_KIND` 被强制为 `build`（`.github/workflows/kernel.yml:95`），
+所以会跑完整镜像并把 `.img` + 两个 dtb + deb 一起发到 Release。
 
 ---
 
@@ -141,11 +155,29 @@ GPIOA_2 ──┬── R86(0Ω)  ──→ U28.6 (FUSB340 SEL)
 ```
 boot/boot-meson64.cmd
   └→ userpatches/bootscripts/boot-meson64.cmd   （armbian 优先用这份覆盖自己的）
-       └→ armbian-bsp-cli postinst 用 mkimage 编成 /boot/boot.scr
+       └→ 镜像构建时由上游 partitioning.sh 编译成 /boot/boot.scr
             ├─ load armbianEnv.txt + env import -t
             ├─ 注入块：gpio read → setenv fdtfile
             └─ load ... dtb/${fdtfile}
 ```
+
+**boot.scr 是谁编的**（上游 `lib/functions/image/partitioning.sh:511-527`）：
+
+```bash
+if [[ -f "${SDCARD}/boot/boot.cmd" ]]; then
+    BOOTSCRIPT_OUTPUT=boot.scr        # 未设时的默认值
+    mkimage -C none -A arm -T script -d "${SDCARD}/boot/boot.cmd" "${SDCARD}/boot/boot.scr"
+fi
+```
+
+上游 `lib/functions/main/rootfs-image.sh:97-98` 的顺序是
+`prepare_partitions`（编 boot.scr）→ `create_image_from_sdcard_rootfs`（rsync /boot 进镜像），
+**先编后拷，顺序正确**。
+
+> ⚠ 另有一条**设备侧**路径：`armbian-bsp-cli` 的 postinst
+> （`lib/functions/bsp/armbian-bsp-cli-deb.sh`）也会用 mkimage 生成 boot.scr，
+> 但只在 `BOOTSCRIPT_FORCE_UPDATE == yes || ! -f /boot/boot.cmd` 时才跑 ——
+> 那是设备上首次装/升级 bsp-cli 用的，与镜像构建路径相互独立。
 
 ### ⚠ GPIO 必须写数字 51，符号名无效
 
@@ -298,8 +330,12 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 4. Inject board files    deploy-to-build.sh + 存在性校验
 5. Build kernel          ./compile.sh <target> BOARD=halo-a311d BRANCH=current
 6. Collect artifacts     ⭐ 按 target 硬校验必需产物，缺了 exit 1
-7. Publish Release       仅推 tag 时；必须含镜像，否则失败
+7. Publish Release       仅推 tag 时（`if: github.ref_type == 'tag'`）；必须含镜像，否则失败
 ```
+
+> ⚠ 步骤 7 在**手动 dispatch** 时永远是 skipped —— 这不是失败。
+> 发 Release 只能靠推 tag（`git tag v2026.10.21-gxlimg && git push origin v2026.10.21-gxlimg`），
+> 推 tag 时 `TARGET_KIND` 被强制为 `build`。
 
 另有 `cron '0 6 * * 1'` 每周一增量重建。
 
