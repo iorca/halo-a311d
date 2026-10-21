@@ -603,9 +603,20 @@ jobs:
             echo
             echo "### 刷写"
             echo '```bash'
-            echo "# dd 到 eMMC（A311D 无 SD 卡槽，只能 eMMC 启动）"
+            echo "# ⚠ 先确认设备名，别刷错盘："
+            echo "lsblk"
+            echo "dmesg | grep -i mmc"
+            echo
+            echo "# 刷到 SD 卡座（底板 CARD1，&sd_emmc_b）"
             echo "dd if=Armbian_*.img of=/dev/sdX bs=4M conv=fsync status=progress"
+            echo
+            echo "# 刷到 eMMC（核心板，&sd_emmc_c）"
+            echo "dd if=Armbian_*.img of=/dev/mmcblkX bs=4M conv=fsync status=progress"
             echo '```'
+            echo
+            echo "> 板上有 SD 卡座（CARD1，信号经 CN2 + ESD U35/U36/U37），"
+            echo "> 也有核心板 eMMC，两者都由本板 dts 启用（\`&sd_emmc_b\` / \`&sd_emmc_c\`）。"
+            echo "> 设备节点编号按实际 mmc 探测顺序而定，务必先 \`lsblk\` 确认。"
             echo
             echo "> ⚠ **尚未在真机上验证过启动。** DTS 与内核均在 CI 编译通过，"
             echo "> 但 PCIe/USB3.0 冷切换与各外设功能需实机确认。"
