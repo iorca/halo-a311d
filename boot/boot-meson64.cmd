@@ -125,26 +125,46 @@ fi
 #
 # Reading: `gpio read <var> <pin>` (needs CONFIG_CMD_GPIO + CONFIG_CMD_GPIO_READ).
 #   cmd/gpio.c:279-280 -> gpio_direction_input() then env_set_ulong(var, 0|1).
-#   Pin must be given as BANK_PIN ("GPIOA_2"); the DT line-name "FUSB340_SEL"
-#   does NOT resolve here because u-boot ships the VIM3 control dtb.
+#   <pin> MUST be the numeric gpio number (51); see the derivation below.
+#   Symbolic forms do not work on meson -- neither "GPIOA_2" nor "A_2" nor the
+#   DT line-name "FUSB340_SEL" resolve.
 #
 # Optional override in /boot/armbianEnv.txt: althea_mode=pcie|usb3
 #   WARNING: that only changes WHICH DTB is loaded. The mux is fixed by the
 #   resistor, so forcing the wrong value gives you a PCIe-configured kernel on
 #   USB3-wired hardware.
 # =============================================================================
-setenv althea_sel_pin "GPIOA_2"
+# ⚠⚠ **必须用数字编号，符号名在 meson 上解析不了**（u-boot 2026.04 源码核对）:
+#   drivers/pinctrl/meson/pinctrl-meson.c:334
+#       uc_priv->bank_name = priv->data->name;   -> "periphs-banks" / "aobus-banks"
+#   drivers/gpio/gpio-uclass.c:176  前缀匹配 name 与 bank_name
+#       "GPIOA_2" vs "periphs-banks"  -> 不匹配
+#       （DM 里没有 gpio-bank-names，也没有 per-bank 名字）
+#   ⇒ "GPIOA_2" / "A_2" 都会报 "GPIO: 'x' not found"，只剩数字路径可用。
+#
+# 51 的推导:
+#   meson-g12a periphs banks 顺序 Z(0-15) H(16-24) BOOT(25-40) C(41-48)
+#                                A(49-64) X(65-84)   [num_pins=85, pin_base=EE_OFF=15]
+#   → GPIOA_2 在 periphs 内偏移 = 49 + 2 = 51
+#   gpio_base 按探测顺序累加(gpio-uclass.c:1413)，periphs 节点在
+#   meson-g12-common.dtsi:271、aobus 在 :1759 → periphs 先 → gpio_base = 0
+#   → gpio 全局编号 = 0 + 51 = **51**
+#
+# ⚠ 若硬件上发现「贴了上拉却读到 LOW」，先怀疑这个编号：改成 armbianEnv.txt
+#   althea_sel_num=66  （66 = 51 + EE_OFF，即 Linux 侧编号，对应 AO 先探测的排布）
+if test -z "${althea_sel_num}"; then setenv althea_sel_num "51"; fi
 setenv althea_fdt_usb3 "amlogic/meson-halo-a311d.dtb"
 setenv althea_fdt_pcie "amlogic/meson-halo-a311d-pcie.dtb"
 
-gpio read althea_sel ${althea_sel_pin}
+gpio read althea_sel ${althea_sel_num}
 
 if test -z "${althea_sel}"; then
-	echo "althea: WARNING: cannot read ${althea_sel_pin} (CONFIG_CMD_GPIO_READ enabled?)"
+	echo "althea: WARNING: gpio read ${althea_sel_num} failed"
+	echo "althea: check CONFIG_CMD_GPIO + CONFIG_CMD_GPIO_READ, or try althea_sel_num=66"
 	echo "althea: falling back to USB3.0 dtb"
 	setenv althea_sel "0"
 fi
-echo "althea: SEL(${althea_sel_pin}) = ${althea_sel}"
+echo "althea: SEL(gpio ${althea_sel_num} = GPIOA_2) = ${althea_sel}"
 
 if test "${althea_mode}" = "pcie"; then
 	echo "althea: override althea_mode=pcie (mux still set by the resistor!)"

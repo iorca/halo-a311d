@@ -24,18 +24,21 @@
 
 echo "MAIN_V0.3 mode select by FUSB340 SEL (strap)"
 
-setenv althea_sel_pin "GPIOA_2"
+# ⚠ 必须用**数字编号**：meson 的 bank_name 是 "periphs-banks"，
+#   符号名 "GPIOA_2"/"A_2" 前缀匹配必然失败（详见 boot/boot-meson64.cmd 注释）。
+#   GPIOA_2 = 51（periphs 内 A 组偏移 49 + 2，periphs gpio_base=0）
+if test -z "${althea_sel_num}"; then setenv althea_sel_num "51"; fi
 setenv althea_fdt_usb3 "amlogic/meson-halo-a311d.dtb"
 setenv althea_fdt_pcie "amlogic/meson-halo-a311d-pcie.dtb"
 
-gpio read althea_sel ${althea_sel_pin}
+gpio read althea_sel ${althea_sel_num}
 
 if test -z "${althea_sel}"; then
-    echo "WARNING: cannot read ${althea_sel_pin} (CONFIG_CMD_GPIO_READ enabled?)"
+    echo "WARNING: gpio read ${althea_sel_num} failed (CONFIG_CMD_GPIO_READ?)"
     echo "falling back to USB3.0 dtb"
     setenv althea_sel "0"
 fi
-echo "SEL(${althea_sel_pin}) = ${althea_sel}"
+echo "SEL(gpio ${althea_sel_num} = GPIOA_2) = ${althea_sel}"
 
 if test "${althea_sel}" = "1"; then
     echo "SEL=HIGH -> PCIe"
