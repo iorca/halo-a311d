@@ -81,9 +81,6 @@ jobs:
           echo "--- 关键文件校验 ---"
           ls arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi
           ls arch/arm64/boot/dts/amlogic/meson-g12b.dtsi
-          # OPP 校验要用的两份上游参考（缺一不可）
-          ls arch/arm64/boot/dts/amlogic/meson-g12b-a311d.dtsi
-          ls arch/arm64/boot/dts/amlogic/meson-g12b-khadas-vim3.dtsi
           ls include/dt-bindings/gpio/meson-g12a-gpio.h
           ls include/dt-bindings/gpio/gpio.h
           ls include/dt-bindings/leds/common.h
@@ -245,31 +242,22 @@ jobs:
         run: |
           set -eu
           K="$RUNNER_TEMP/kernel"
-          D="$K/arch/arm64/boot/dts/amlogic"
-          # 上游参考文件：
-          #   meson-g12b-a311d.dtsi       → CPU OPP 表的**内容**（A311D 的电压值）
-          #   meson-g12b-khadas-vim3.dtsi → 板级补充（regulator 等）
-          # 「CPU 该用哪张表」上游放在哪个文件随内核版本变（v6.18 在
-          # khadas-vim3.dtsi，master 挪进了 a311d.dtsi 自己），
-          # 所以两个都给，脚本在全部参考里一起找。
-          #
-          # 期望值全部取自上游，不采信被测板级 DTS 自己的声明 ——
-          # 否则「板级把 CPU 指到错误的表」这类错误永远发现不了
-          # （板级说 cpu0 用 A 表，DTB 里 cpu0 确实用 A 表，自洽但都是错的）。
-          REFS=()
-          for r in meson-g12b-a311d.dtsi meson-g12b-khadas-vim3.dtsi; do
-            if [ ! -f "$D/$r" ]; then
-              echo "::error::找不到上游参考 $D/$r"
-              exit 1
-            fi
-            REFS+=("$D/$r")
-          done
-          for r in "${REFS[@]}"; do echo "参考: $r"; done
+          REF="$K/arch/arm64/boot/dts/amlogic/meson-g12b-a311d.dtsi"
+          if [ ! -f "$REF" ]; then
+            echo "::error::找不到上游参考 $REF"
+            exit 1
+          fi
+          echo "参考文件: $REF"
           fail=0
           for f in meson-halo-a311d meson-halo-a311d-pcie; do
             echo "::group::OPP check $f.dtb"
+            # 三个输入：编译出的 dtb、该变体的板级 dts、上游 a311d dtsi。
+            # 脚本从板级 dts 读出每个 &cpuN 声明的 operating-points-v2，
+            # 再到 dtb 里反查该 cpu 实际引用的表，逐项与上游比对。
             if ! python3 "$GITHUB_WORKSPACE/scripts/check-opp-tables.py" \
-                 "/tmp/$f.dtb" "${REFS[@]}"; then
+                 "/tmp/$f.dtb" \
+                 "$GITHUB_WORKSPACE/dt/$f.dts" \
+                 "$REF"; then
               fail=1
             fi
             echo "::endgroup::"
