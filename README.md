@@ -23,19 +23,32 @@ Amlogic A311D —— **Halo 底板** + **荣品 PRO-A311D 核心板**，mainline
 
 ⚠ **全部只在 CI 里验证过「编得出来 + 文件都在」，真机启动仍未验证。** 见文末已知限制。
 
-### Release 发布：只认 tag
+### Release 发布：只认「可刷写镜像」
 
-`Publish GitHub Release` 步骤带 `if: github.ref_type == 'tag'`，**手动 dispatch 永远不会发 Release**
-（步骤显示 skipped，这是设计行为不是失败）。发版必须推 tag：
+判据是**产物性质** —— 五个 target 里只有 `build` 会产出 `.img`，也只有它刷得进机器。
+所以 Release 只在 `TARGET_KIND == build` 时发布，`kernel`/`uboot`/`rootfs`/`firmware`
+出的都是 deb 或归档，不发布。
 
+两种发版方式，**任选其一**：
+
+**方式 A — 推 tag**（语义更正式，会新建 tag）
 ```bash
 git checkout gxlimg-full-mainline-uboot
-git tag v2026.10.21-gxlimg
-git push origin v2026.10.21-gxlimg
+git tag -a v2026.10.21-mainline -m "发布说明"
+git push origin v2026.10.21-mainline
 ```
 
-推 tag 时 `TARGET_KIND` 被强制为 `build`（`.github/workflows/kernel.yml:95`），
-所以会跑完整镜像并把 `.img` + 两个 dtb + deb 一起发到 Release。
+**方式 B — 手动 dispatch**（不新建 tag，省一步）
+在 Actions 页面 `kernel-build` → `Run workflow`：
+- `target` 选 **build**
+- `release` 选 `noble`
+- `tag` 可留空（自动生成 `build-<日期>-<sha8>`），也可手填如 `v2026.10.21-mainline`
+
+> 推 tag 时 `TARGET_KIND` 被强制为 `build`（`.github/workflows/kernel.yml:95`），
+> 两种方式最终都会跑完整镜像并发布 `.img` + 两个 dtb + deb。
+>
+> 真兜底是脚本里的 `IMAGES` 空值检查：找不到镜像直接 `exit 1`，
+> 不会发出一个「只有 dtb、没有可刷镜像」的 Release。
 
 ---
 
@@ -330,12 +343,11 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 4. Inject board files    deploy-to-build.sh + 存在性校验
 5. Build kernel          ./compile.sh <target> BOARD=halo-a311d BRANCH=current
 6. Collect artifacts     ⭐ 按 target 硬校验必需产物，缺了 exit 1
-7. Publish Release       仅推 tag 时（`if: github.ref_type == 'tag'`）；必须含镜像，否则失败
+7. Publish Release       ⭐ 仅 target=build（唯一产出可刷镜像的 target）；缺镜像则 exit 1
 ```
 
-> ⚠ 步骤 7 在**手动 dispatch** 时永远是 skipped —— 这不是失败。
-> 发 Release 只能靠推 tag（`git tag v2026.10.21-gxlimg && git push origin v2026.10.21-gxlimg`），
-> 推 tag 时 `TARGET_KIND` 被强制为 `build`。
+> 步骤 7 在 `kernel`/`uboot`/`rootfs`/`firmware` 时会 skipped —— 那几个 target
+> 不产 `.img`，发的 Release 也没意义，不是失败。
 
 另有 `cron '0 6 * * 1'` 每周一增量重建。
 
