@@ -123,6 +123,37 @@ jobs:
           done
           exit $fail
 
+      - name: Check DTS label references (offline pre-check)
+        # ⚠ 这道检查对应一个真实的、dtc 报出来才发现的 bug。
+        #
+        #   删掉 &i2c_AO 下的 rtc@51 (hym8563) 节点后，aliases 里的
+        #       rtc0 = &rtc;
+        #   成了**悬空引用** —— 那个 &rtc label 就是被删节点自己定义的。
+        #   dtc 能报出来（path_references, ERROR 级），但要跑完整内核树
+        #   才有那个错误信息；而 CI 里改一行 DTS 就要等一次全量 clone。
+        #
+        #   本脚本离线完成同样的判断：
+        #     1. 沿 include 链收集上游 dtsi 定义的全部 label
+        #     2. 收集板级 dts 里引用的全部 &label
+        #     3. 报告「引用了但没定义」的 label
+        #
+        #   只在编译**之前**跑一遍，属于快速失败 —— 真正的语法检查
+        #   仍然由后面的 dtc 负责（它能查的东西更多）。
+        run: |
+          set -eu
+          K="$RUNNER_TEMP/kernel"
+          D="$K/arch/arm64/boot/dts/amlogic"
+          fail=0
+          for f in meson-halo-a311d meson-halo-a311d-pcie; do
+            echo "::group::label ref check $f.dts"
+            if ! python3 "$GITHUB_WORKSPACE/scripts/check-dts-refs.py" \
+                 "$GITHUB_WORKSPACE/dt/$f.dts" "$D"; then
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
       - name: Compile DTBs
         run: |
           set -eux
