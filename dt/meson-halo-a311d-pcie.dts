@@ -101,6 +101,10 @@
 		 * 通道 0(A) 可选脚含 GPIOX_6；
 		 * 本板 VDDCPU_A_PWM = GPIOE_2 (厂商 pinmux pwm_a_e2 →
 		 *   function "pwm_a_gpioe"，规格书 Table 3-10 GPIOE_2 组)。
+		 *
+		 * ⚠ GPIOE_2 是**核心板**上的引脚（SoM 侧走线到 VDDCPU_A 的
+		 *   PWM 电路），底板网表（netlist-dump/）里查不到它是正常的 ——
+		 *   那份网表只覆盖底板。查这类脚要拿核心板原理图。
 		 */
 		pwms = <&pwm_ab 0 1250 0>;
 		pwm-dutycycle-range = <100 0>;
@@ -124,6 +128,9 @@
 		 * 通道 1(D) 可选脚: GPIOAO_5 / GPIOAO_10 / GPIOE_1
 		 * 本板 VDDCPU_B_PWM = GPIOE_1 (规格书 Table 3-10
 		 *   GPIOE_1 Func3 = PWMAO_D)，故用 pwm_ao_d_e_pins。
+		 *
+		 * ⚠ GPIOE_1 同vddcpu_a 的 GPIOE_2：都是**核心板**引脚，
+		 *   底板网表查不到属正常，查这类脚要拿核心板原理图。
 		 */
 		pwms = <&pwm_AO_cd 1 1250 0>;
 		pwm-dutycycle-range = <100 0>;
