@@ -23,17 +23,33 @@ duplicate_label 两道 ERROR 级检查都不触发，**退出码是 0，CI 全�
 
 校验的不变式
 ------------
-板级 DTS 里每个 &cpuN 声明的 operating-points-v2 = <&LABEL>，
-对应上游 dtsi 中 label LABEL 所指的表。
-编译出的 DTB 里，cpuN 实际引用的那张表，其内容必须与上游 LABEL 表**逐项相同**。
+**期望值一律取自上游，不采信被测板级 DTS 自己的声明。**
 
-这个不变式同时能抓住两类错误：
+  · 表的内容    → 上游 meson-g12b-a311d.dtsi（label cpu_opp_table_0 / cpub_opp_table_1）
+  · CPU 该用哪张表 → 上游板级 dtsi（&cpuN 的 operating-points-v2）
+
+上游把「CPU 用哪张表」放在哪个文件随内核版本变动：
+  v6.18  → meson-g12b-khadas-vim3.dtsi
+  master → meson-g12b-a311d.dtsi 自己
+所以参考文件给多个，脚本在全部里一起找。
+
+对每个 CPU：DTB 里它实际引用的那张表，内容必须与上游对应表**逐项相同**。
+
+这个不变式同时抓住三类错误：
   1. 多个 SoC dtsi 被合并 → 表内容被污染
-  2. CPU 指到了错误的表（比如 A53 误指大核表）→ 表内容对不上
+  2. 板级把 CPU 指到了错误的表（A53 误指大核表）→ 内容对不上
+  3. 板级把表改名 → 按内容比对，不受影响
+
+若拿「板级 DTS 自己的声明」当期望值，第 2 类就永远发现不了
+（板级说 cpu0 用 A 表，DTB 里 cpu0 确实用 A 表，自洽但都是错的）。
 
 用法
 ----
-    check-opp-tables.py <编译出的 .dtb> <板级 .dts> <上游 meson-g12b-a311d.dtsi>
+    check-opp-tables.py <编译出的 .dtb> <上游参考 dtsi> [更多参考 dtsi...]
+
+例：
+    check-opp-tables.py out.dtb \
+        $D/meson-g12b-a311d.dtsi $D/meson-g12b-khadas-vim3.dtsi
 
 退出码
 ------
@@ -115,8 +131,8 @@ def dtb_opp_table(props, kids, table):
     return out
 
 
-def cpu_table_ref(props, kids, cpu):
-    """某个 cpu 节点通过 operating-points-v2 指向的表节点路径
+def cpu_table_content(props, kids, cpu):
+    """某个 cpu 节点实际引用的 OPP 表 → (表节点路径, 表内容)
 
     板级 dts 里用 &cpu0 这样的 label 引用，DTB 里的节点名却是 cpu@0。
     这里按 CPU 编号匹配：cpu0 → cpu@0、cpu100 → cpu@100。
@@ -131,8 +147,11 @@ def cpu_table_ref(props, kids, cpu):
     for cand in (f"cpu@{num}", cpu):
         for name, val in props.get(f"/cpus/{cand}", []):
             if name == "operating-points-v2" and len(val) == 4:
-                return ph2path.get(int.from_bytes(val, "big"))
-    return None
+                path = ph2path.get(int.from_bytes(val, "big"))
+                if path is None:
+                    return None, None
+                return path, dtb_opp_table(props, kids, path.lstrip("/"))
+    return None, None
 
 
 # --------------------------------------------------------------------------
@@ -182,8 +201,8 @@ def dtsi_opp_table(text, label):
     return node_name, dict(sorted(out.items()))
 
 
-def board_cpu_opp_refs(text):
-    """从板级 dts 解析出每个 &cpuN 声明的 OPP 表 label → {cpu: label}
+def cpu_opp_label_refs(text):
+    """从板级 dtsi 解析每个 &cpuN 声明的 OPP 表 label → {cpu: label}
 
     形如：
         &cpu0 {
@@ -231,15 +250,16 @@ def diff_tables(expected, actual):
 
 
 def main(argv):
-    if len(argv) != 4:
+    if len(argv) < 3:
         print(__doc__)
         return 2
-    dtb_path, board_dts, upstream = argv[1], argv[2], argv[3]
+    dtb_path = argv[1]
+    ref_paths = argv[2:]
 
     try:
         dtb = open(dtb_path, "rb").read()
-        board = open(board_dts, encoding="utf-8", errors="replace").read()
-        up = open(upstream, encoding="utf-8", errors="replace").read()
+        refs = [(p, open(p, encoding="utf-8", errors="replace").read())
+                for p in ref_paths]
     except OSError as e:
         print(f"::error::读文件失败: {e}")
         return 2
@@ -250,47 +270,53 @@ def main(argv):
         print(f"::error::解析 DTB 失败 {dtb_path}: {e}")
         return 2
 
-    print(f"DTB  : {dtb_path}")
-    print(f"板级 : {board_dts}")
-    print(f"参考 : {upstream}")
+    print(f"DTB     : {dtb_path}")
+    for p, _ in refs:
+        print(f"参考    : {p}")
 
-    # 板级 DTS 声明的 CPU → OPP 表 label
-    try:
-        refs = board_cpu_opp_refs(board)
-    except ValueError as e:
-        print(f"::error::解析板级 dts 失败: {e}")
+    # 上游：CPU → 应使用哪张表（在所有参考文件里一起找）
+    want = {}
+    for p, text in refs:
+        try:
+            for cpu, label in cpu_opp_label_refs(text).items():
+                want.setdefault(cpu, label)
+        except ValueError as e:
+            print(f"::error::解析 {p} 失败: {e}")
+            return 2
+    if not want:
+        print("::error::上游参考里找不到 operating-points-v2 声明，无法校验")
         return 2
-    if not refs:
-        print("::error::板级 dts 里找不到任何 operating-points-v2 声明，无法校验")
-        return 2
+
+    # 上游：每张表的内容（同样在所有参考文件里找）
+    up_tables = {}
+    for label in sorted(set(want.values())):
+        for p, text in refs:
+            try:
+                up_tables[label] = dtsi_opp_table(text, label)
+                break
+            except KeyError:
+                continue
+        if label not in up_tables:
+            print(f"::error::在参考文件里找不到 OPP 表 {label}")
+            return 2
 
     ok = True
-    up_cache = {}  # label → (节点名, 表)
-
-    for cpu, label in sorted(refs.items(), key=lambda kv: int(kv[0][3:])):
-        if label not in up_cache:
-            try:
-                up_cache[label] = dtsi_opp_table(up, label)
-            except (KeyError, ValueError) as e:
-                print(f"::error::解析上游 {label} 失败: {e}")
-                return 2
-        up_node, expected = up_cache[label]
-
-        table = cpu_table_ref(props, kids, cpu)
+    for cpu, label in sorted(want.items(), key=lambda kv: int(kv[0][3:])):
+        up_node, expected = up_tables[label]
+        table, actual = cpu_table_content(props, kids, cpu)
         if table is None:
             print(f"  ❌ {cpu}: DTB 里没有 operating-points-v2 引用")
             ok = False
             continue
 
-        actual = dtb_opp_table(props, kids, table.lstrip("/"))
         if actual == expected:
-            print(f"  ✅ {cpu} → {table}（{label} = {up_node}, {len(actual)} 项）与上游一致")
+            print(f"  ✅ {cpu} → {table}（应为 {label} = {up_node}，{len(actual)} 项）与上游一致")
             continue
 
-        print(f"  ❌ {cpu} → {table}（声明应为 {label} = {up_node}）与上游不一致")
+        print(f"  ❌ {cpu} → {table}（应为 {label} = {up_node}）与上游不一致")
         for line in diff_tables(expected, actual):
             print(line)
-        print(f"    上游 {up_node}:")
+        print(f"    上游 {up_node}（{label}）:")
         print(fmt_table(expected).replace("\n", "\n    "))
         print(f"    DTB  {table}:")
         print(fmt_table(actual).replace("\n", "\n    "))
@@ -302,11 +328,11 @@ def main(argv):
         print("::error::常见原因：")
         print("::error::  a) 板级 DTS 同时 include 了多份 SoC 的 dtsi")
         print("::error::     （如 meson-g12b-s922x.dtsi）→ dtc 把同名 opp-table 合并成混搭表")
-        print("::error::  b) CPU 的 operating-points-v2 指到了错误的表")
+        print("::error::  b) 板级把 CPU 的 operating-points-v2 指到了错误的表")
         print("::error::本板是 A311D，只应 include meson-g12b-a311d.dtsi 一份。")
     else:
         print()
-        print(f"OK  {len(refs)} 个 CPU 的 OPP 表均与上游 A311D 定义一致")
+        print(f"OK  {len(want)} 个 CPU 的 OPP 表均与上游 A311D 定义一致")
     return 0 if ok else 1
 
 
