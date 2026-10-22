@@ -582,6 +582,101 @@ jobs:
           fi
           echo ">>> u-boot 来源: $UBOOT_KIND"
 
+          # ================================================================
+          # ⚠⚠⚠ tag 必须指向「本次构建的 commit」
+          #
+          # 背景（2026-10-22 查出的真 bug）：
+          #   `gh release create` 在 **tag 不存在** 时，会让 GitHub 用
+          #   **默认分支的 HEAD** 建这个 tag
+          #   （gh 源码 pkg/cmd/release/create/create.go：
+          #     opts.Target → API 的 target_commitish，**缺省 = default branch**）。
+          #
+          #   本仓库默认分支是 main，而 mainline 发行线的代码在
+          #   gxlimg-full-mainline-uboot 分支上
+          #   → 两条线的 tag 全指向 main 的 commit。
+          #   实测 10.22：v2026.10.22-libreelec 和 v2026.10.22-mainline
+          #     **都**指向 44d73fa（= main 的 commit），
+          #     而 mainline 的产物是 ba4940b（gxlimg 分支）编出来的。
+          #
+          #   后果：Release 页面 "Source code" 下载到的是 main 的代码，
+          #         与产物对不上 —— 而 CI 全程绿灯，没有任何检查会报。
+          #
+          # 现在自己管 tag（不依赖 gh 的 target_commitish 缺省行为）：
+          #   · tag 不存在              → 用 API 建（annotated，带说明）
+          #   · tag 存在且指向同一 commit → 不动
+          #   · tag 存在但指向别的 commit → 强制移动
+          #     （同一个 tag 名重跑一次构建就是这个场景；
+          #       Release 本来就会被删掉重建，tag 必须跟着**新产物**走）
+          #
+          # 期望 commit 一律取 $GITHUB_SHA —— 它就是本次构建用的那个 commit
+          #（dispatch 时 = 被 dispatch 的分支 HEAD；tag 推送时 = 该 tag 指向的 commit）。
+          # ================================================================
+          REPO_API="repos/${{ github.repository }}"
+          TAG_REF="refs/tags/$TAG"
+
+          # 查远端现有 tag 指向哪个 commit（annotated tag 要剥两层）
+          #
+          # ⚠⚠⚠ 必须靠**退出码**判断 tag 存不存在，**不能**靠 stdout 是否为空：
+          #   gh api 在 404 时把错误 JSON（{"message":"Not Found",...}）
+          #   打到 **stdout**（不是 stderr！），而且 --jq 对错误输出不生效。
+          #   → `$(gh api ... --jq .object.sha 2>/dev/null || echo "")` 拿到的是
+          #     那段错误 JSON 字符串，不是空 → 会被误判成"tag 存在"。
+          #   实测踩过：拿错误 JSON 当 sha 去查 → 报 "Reference does not exist"。
+          #
+          # 正确做法：先看退出码，成功了再取 --jq 的值。
+          existing_commit=""
+          if existing_sha=$(gh api "$REPO_API/git/ref/tags/$TAG" --jq '.object.sha' 2>/dev/null); then
+              existing_type=$(gh api "$REPO_API/git/ref/tags/$TAG" --jq '.object.type' 2>/dev/null || echo "commit")
+              if [ "$existing_type" = "tag" ]; then
+                  # annotated tag：object.sha 是 tag 对象，要再剥一层才是 commit
+                  existing_commit=$(gh api "$REPO_API/git/tags/$existing_sha" --jq '.object.sha' 2>/dev/null || echo "")
+              else
+                  existing_commit="$existing_sha"
+              fi
+          else
+              echo ">>> 远端没有 tag $TAG"
+          fi
+          echo ">>> 现有 tag $TAG 指向: ${existing_commit:-<不存在>}"
+
+          if [ -z "$existing_commit" ]; then
+              echo ">>> 创建 annotated tag $TAG -> ${GITHUB_SHA:0:12}"
+              # ⚠ message 的换行用 printf 构造，不能直接写 \n：
+              #   gh api 的 -f 不做转义，message="a\nb" 传过去的是**字面** \n 两个字符
+              #   而不是真换行（实测过）。也不能用 $'...' —— ANSI-C 引用**不做变量展开**，
+              #   ${BOARD} 会原样留在 message 里（也实测过）。printf 两个问题都没有。
+              TAG_MSG=$(printf '%s\ncommit: %s\nu-boot 来源: %s\n由 CI 自动创建（tag 指向本次构建的 commit）。' \
+                  "$BOARD $TAG" "$GITHUB_SHA" "$UBOOT_KIND")
+              TAG_OBJ=$(gh api --method POST "$REPO_API/git/tags" \
+                  -f tag="$TAG" \
+                  -f message="$TAG_MSG" \
+                  -f object="$GITHUB_SHA" \
+                  -f type=commit \
+                  -f "tagger[name]=${{ github.actor }}" \
+                  -f "tagger[email]=${{ github.actor }}@users.noreply.github.com" \
+                  --jq '.sha')
+              gh api --method POST "$REPO_API/git/refs" \
+                  -f ref="$TAG_REF" -f sha="$TAG_OBJ" >/dev/null
+          elif [ "$existing_commit" != "$GITHUB_SHA" ]; then
+              echo ">>> ⚠ tag $TAG 原指向 ${existing_commit:0:12}，与本次构建 ${GITHUB_SHA:0:12} 不符 → 强制移动"
+              # 删 ref 再重建（annotated 与 lightweight 统一处理）
+              gh api --method DELETE "$REPO_API/git/refs/tags/$TAG" >/dev/null
+              TAG_MSG=$(printf '%s\ncommit: %s\nu-boot 来源: %s\n（重建：原 tag 指向 %.12s，与本次构建不符）' \
+                  "$BOARD $TAG" "$GITHUB_SHA" "$UBOOT_KIND" "$existing_commit")
+              TAG_OBJ=$(gh api --method POST "$REPO_API/git/tags" \
+                  -f tag="$TAG" \
+                  -f message="$TAG_MSG" \
+                  -f object="$GITHUB_SHA" \
+                  -f type=commit \
+                  -f "tagger[name]=${{ github.actor }}" \
+                  -f "tagger[email]=${{ github.actor }}@users.noreply.github.com" \
+                  --jq '.sha')
+              gh api --method POST "$REPO_API/git/refs" \
+                  -f ref="$TAG_REF" -f sha="$TAG_OBJ" >/dev/null
+          else
+              echo ">>> tag $TAG 已指向 ${GITHUB_SHA:0:12}，不动"
+          fi
+
+
           # 生成 release 说明
           NOTES="$RUNNER_TEMP/notes.md"
           {

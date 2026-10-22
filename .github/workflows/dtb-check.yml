@@ -17,10 +17,19 @@ on:
     branches: [main]
     paths:
       - 'dt/**'
+      # ⚠ scripts/ 与 patch/ 也要触发：
+      #   scripts/  → 检查脚本本身被改（换了判据 / 换了期望值来源）
+      #   patch/    → 禁用 armbian OPP patch 的那批 0 字节文件被改
+      # 少了这两条，这两类改动**不会**触发任何检查 —— 2026-10-22 就这样
+      # 让 44d73fa（只改 patch/ 与 scripts/）在零检查的情况下推上 main。
+      - 'scripts/**'
+      - 'patch/**'
       - '.github/workflows/**'
   pull_request:
     paths:
       - 'dt/**'
+      - 'scripts/**'
+      - 'patch/**'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -87,6 +96,58 @@ jobs:
           ls include/dt-bindings/gpio/meson-g12a-gpio.h
           ls include/dt-bindings/gpio/gpio.h
           ls include/dt-bindings/leds/common.h
+
+      - name: Verify the CPU OPP patch from armbian stays disabled
+        # ⚠⚠⚠ 这道检查对应一个**其他 7 道都抓不到**的真 bug。
+        #
+        #   armbian/build 的 patch/kernel/archive/meson64-*/ 下有
+        #   board-odroidn2plus-Add-missing-CPU-opp.patch，给上游
+        #   meson-g12b-a311d.dtsi 追加 4 个高频 OPP 档
+        #   （1.908/2.016/2.304/2.4 GHz，顶 1040 mV）。
+        #   那 4 档是为 ODROID-N2+（S922X）加的，本板 regulator 上限
+        #   1050 mV → 余量仅 10 mV。
+        #
+        #   为什么别的检查抓不到：
+        #     · dtb-check 的 OPP 检查（第 5 道）编译的是
+        #       「板级 DTS + **未打 patch 的**上游 dtsi」→ 永远只有 7/11 档
+        #     · armbian 的 patch 只存在于 armbian 的内核树里，
+        #       dtb-check 根本没碰过它
+        #   → 2026-10-21 的 Release 产物实测是 9 档 / 13 档（顶 2.4GHz），
+        #     而 dtb-check 全程绿灯。这就是**盲区**。
+        #
+        #   我们的解法：在 user 层放 0 字节的同名文件禁用它
+        #   （armbian lib/tools/patching.py:183-187 + :172-174）。
+        #   但「同名」是**按文件名**匹配的 → 静默失效的入口有三条：
+        #     1. 上游把 patch 改名 → 我们的禁用文件不再同名
+        #     2. 上游新增另一个改 OPP 表的 patch（不同名）
+        #     3. 我们的 0 字节文件被误填了内容 → 反而变成真 patch
+        #   这道检查把这三条全堵上。
+        #
+        # 顺带在这里校验 armbian 上游的 patch 目录 —— 顺带把
+        # 「上游有哪些 meson64-* 目录」也报出来，将来新增目录能第一时间看到。
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP"
+          # 只取 patch/kernel/archive/meson64-* —— blob:none 不下载 blob，
+          # 用 --no-cone 的通配才能覆盖到子目录里的文件。
+          git clone --depth 1 --filter=blob:none --sparse \
+            "https://github.com/armbian/build.git" armbian-build
+          cd armbian-build
+          git sparse-checkout set --no-cone '/patch/kernel/archive/meson64-*'
+          echo "--- 上游 meson64-* 目录 ---"
+          ls -d patch/kernel/archive/meson64-*/ 2>/dev/null || true
+          echo "--- 上游各目录里的 .patch 数量 ---"
+          for d in patch/kernel/archive/meson64-*/; do
+            [ -d "$d" ] || continue
+            n=$(find "$d" -maxdepth 1 -name '*.patch' -type f | wc -l)
+            echo "  $(basename "$d"): $n 个 .patch"
+          done
+          cd "$GITHUB_WORKSPACE"
+          if ! python3 "$GITHUB_WORKSPACE/scripts/check-opp-patch-disable.py" \
+               --armbian-dir "$RUNNER_TEMP/armbian-build/patch/kernel/archive" \
+               --ours-dir "$GITHUB_WORKSPACE/patch/kernel/archive"; then
+            exit 1
+          fi
 
       - name: Verify the two board variants differ only in the FUSB340 choice
         # 两个变体是**手工维护的复制品**（历史上由 work/mk_pcie_variant.py 生成，
