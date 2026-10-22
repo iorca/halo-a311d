@@ -332,9 +332,12 @@ jobs:
           mkdir -p out-halo
           echo ">>> target=$TARGET_KIND"
 
-          # ⚠ armbian 会把 userpatches 的 dts 用 **BOARD 名**重命名后再编 dtb，
-          #   产物叫 halo-a311d.dtb / halo-a311d-pcie.dtb，
-          #   而不是 meson-halo-a311d*.dtb —— 两种名字都要找。
+          # ⚠ 产物 dtb 的真实文件名是 **meson-halo-a311d.dtb** /
+          #   meson-halo-a311d-pcie.dtb（沿用 userpatches 里的 dts 原名，
+          #   armbian 不会重命名）—— 2026-10-22 实测确认。
+          #   glob 用 '*halo-a311d*.dtb' 覆盖它；
+          #   ⚠ 上游的 meson-g12b-a311d*.dtb（含 khadas-vim3 等）**不含
+          #   "halo"** → 不会被这个 glob 误抓（已核对 dtbs 目录清单）。
           echo "--- 查找本板 dtb ---"
           find . -name '*halo-a311d*.dtb' 2>/dev/null | tee /tmp/dtb-list.txt || true
           if [ -s /tmp/dtb-list.txt ]; then
