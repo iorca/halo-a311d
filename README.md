@@ -59,9 +59,50 @@ git push origin v2026.10.21-mainline
 | `main` | LibreELEC khadas-vim3 FIP（厂商原版 u-boot） | 稳定路线 |
 | `gxlimg-full-mainline-uboot` | `fip-blob/` 里的厂商完整 FIP + **gxlimg 重打包主线 u-boot** | 主线 u-boot 路线 |
 
-只有 `config/boards/halo-a311d.conf` 和 `scripts/deploy-to-build.sh` 在两个分支上**内容不同**
-（gxlimg 版多了 fip-blob 注入段、hook 用 `gxlimg_repack_fip_with_new_uboot`）。
-其余文件两边一致 —— **同步时别整文件跨分支拷**，会互相覆盖独有段。
+### 哪些文件两条线必须一致
+
+| 分类 | 内容 |
+|---|---|
+| **必须逐字节一致** | `dt/**`、`patch/**`、`.github/workflows/**`、`scripts/**`（除 `deploy-to-build.sh`）|
+| **受控差异** | `scripts/deploy-to-build.sh` —— gxlimg 版必须是 main 版的**超集**（gxlimg 多了 fip-blob 注入段）|
+| **允许不同**（只提示）| `config/boards/halo-a311d.conf`（hook 不同）、`boot/boot-meson64.cmd`、`docs/**`、`README.md` |
+| **只属于 gxlimg** | `fip-blob/**`（main 用 LibreELEC 方案，不需要厂商 blob）|
+
+**同步时别整文件跨分支拷** —— 会互相覆盖独有段。
+`scripts/deploy-to-build.sh` 尤其危险：gxlimg 版比 main 版多一整段。
+
+### 同步纪律（重要）
+
+**两条线共享 95% 的内容，绝大多数改动必须同时出现在两条分支上。**
+
+最容易出的错：cherry-pick 到一条线之后**忘了切回另一条**，改动就只落在一条线上。
+而两条线的 `.github/workflows/` 与 `scripts/check-*.py` 内容**完全相同** →
+提交错分支**不会**让任何检查变红 → 板级 DTS 静默漂移，两条线产物行为不一致。
+
+为此有三道保险：
+
+1. **CI 第 10 道检查**（`scripts/check-branch-sync.py`）
+   直接比对两个远端分支的树，任何漏同步立刻报红。
+   `dtb-check.yml` 在**两条分支**上都会触发（`push.branches` 含两者）。
+2. **本地一条命令同步**（`scripts/sync-to-both-lines.sh`）
+   ```bash
+   ./scripts/sync-to-both-lines.sh          # 同步 HEAD 到两条线并推送
+   ./scripts/sync-to-both-lines.sh <sha>    # 指定 commit
+   ```
+   它会切分支 → cherry-pick → 推送 → 跑同步检查 → 打印最终状态。
+   **不会** `reset --hard`：本地与远端分叉时直接停下并打印两个 sha，
+   把"要不要丢东西"的决定权留给人。
+3. **手动核对**
+   ```bash
+   git ls-remote origin refs/heads/main refs/heads/gxlimg-full-mainline-uboot
+   python3 scripts/check-branch-sync.py --repo . \
+       --ref-a origin/main --ref-b origin/gxlimg-full-mainline-uboot
+   ```
+
+> ⚠ **判断"是否已推送"不要用 `git log --branches --not --remotes`** ——
+> 本仓库的 fetch refspec 历史上只配了 `main`，其他分支从没有过
+> remote-tracking ref，会把早已推送的提交全列成"未推送"（假象）。
+> 用 `git ls-remote origin refs/heads/<branch>`。
 
 ---
 
@@ -428,31 +469,37 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 
 ### dtb-check（`ubuntu-24.04`）
 
-共 **9 道检查**（`dtb-check.yml`），每道都做过双向验证 ——
+共 **10 道检查**（`dtb-check.yml`），每道都做过双向验证 ——
 在正确代码上通过 + 在**真实坏产物**上报红：
 
 | # | 检查 | 脚本 | 拦什么 |
 |---|---|---|---|
-| 1 | 两变体只差 FUSB340 那侧 | `check-variant-diff.py` | 变体间意外漂移（一边改了另一边忘改）|
-| 2 | 恰好 include 一份 SoC dtsi | 内联 | 多份 SoC dtsi 被合并 → OPP 表污染 |
-| 3 | `&label` 无悬空、label 不含 `-` | `check-dts-refs.py` | 删节点漏改引用；cpp 把 label 里的 `-` 当减号 |
-| 4 | dtc 编译 | 内联 | dtc 退出码 + 产物非空 + **未过滤**的 stderr |
-| 5 | 每个 CPU 的 OPP 表与上游一致 | `check-opp-tables.py` | CPU 指向错误的 OPP 表 |
-| 6 | 每个 gpio-hog 都是内核认可的形式 | `check-gpio-hogs.py` | 内核完全不认的 hog 写法 |
-| 7 | DTB 符合内核 device-tree schema | `check-dtschema.py` | 属性名写错 / 必填属性缺失 |
-| 8 | armbian 的 CPU OPP patch 仍被禁用 | `check-opp-patch-disable.py` | 禁用机制静默失效 → 产物 OPP 表被污染 |
-| 9 | 上传 DTB 产物 | — | 便于下载后做二进制级复核 |
+| 1 | **两条发行线同步** | `check-branch-sync.py` | 改动只提交到一条分支 → 板级 DTS 静默漂移 |
+| 2 | 两变体只差 FUSB340 那侧 | `check-variant-diff.py` | 变体间意外漂移（一边改了另一边忘改）|
+| 3 | 恰好 include 一份 SoC dtsi | 内联 | 多份 SoC dtsi 被合并 → OPP 表污染 |
+| 4 | `&label` 无悬空、label 不含 `-` | `check-dts-refs.py` | 删节点漏改引用；cpp 把 label 里的 `-` 当减号 |
+| 5 | dtc 编译 | 内联 | dtc 退出码 + 产物非空 + **未过滤**的 stderr |
+| 6 | 每个 CPU 的 OPP 表与上游一致 | `check-opp-tables.py` | CPU 指向错误的 OPP 表 |
+| 7 | 每个 gpio-hog 都是内核认可的形式 | `check-gpio-hogs.py` | 内核完全不认的 hog 写法 |
+| 8 | DTB 符合内核 device-tree schema | `check-dtschema.py` | 属性名写错 / 必填属性缺失 |
+| 9 | armbian 的 CPU OPP patch 仍被禁用 | `check-opp-patch-disable.py` | 禁用机制静默失效 → 产物 OPP 表被污染 |
+| 10 | 上传 DTB 产物 | — | 便于下载后做二进制级复核 |
 
 **护栏的设计原则**：期望值一律取自**上游**，不采信被测板级 DTS 自己的声明
 （否则「板级把 CPU 指到错误的表」这类错误永远发现不了 —— 自洽但都是错的）。
 
-流程：`Verify toolchain` → `Sparse-clone dts` → 上述 9 道检查 → 上传 DTB。
+流程：`Verify toolchain` → **两条线同步检查** → `Sparse-clone dts` → 其余检查 → 上传 DTB。
+
+> ⚠ **`dtb-check.yml` 在两条分支上都会触发**（`push.branches` 含
+> `main` 与 `gxlimg-full-mainline-uboot`）。
+> 同步检查只在**被改的那条线**上跑才有意义 —— 以前只挂 main，
+> gxlimg 改了 `dt/` 而 main 没同步就没人会发现。
 
 > ⚠ **`paths` 过滤必须覆盖 `scripts/` 与 `patch/`。**
 > 原来只有 `dt/**` 和 `.github/workflows/**` → 改这两个目录下的文件
 > **不触发任何检查**（2026-10-22 的 `44d73fa` 就这样在零检查的情况下推上 main）。
 
-#### 第 8 道：为什么 dtb-check 单独抓不到 OPP 污染
+#### 第 9 道：为什么 dtb-check 单独抓不到 OPP 污染
 
 armbian/build 的 `patch/kernel/archive/meson64-*/` 下有
 `board-odroidn2plus-Add-missing-CPU-opp.patch`，给上游
@@ -462,13 +509,13 @@ armbian/build 的 `patch/kernel/archive/meson64-*/` 下有
 它落在 patch 目录的 **common 层**，对**所有** meson64 板无条件生效
 （同一 deb 里的 khadas-vim3.dtb 也是 9/13 档 —— 证据）。
 
-**第 5 道抓不到它**：那一道编译的是「板级 DTS + **未打 patch 的**上游 dtsi」
+**第 6 道抓不到它**：那一道编译的是「板级 DTS + **未打 patch 的**上游 dtsi」
 → 永远只有 7/11 档。armbian 的 patch 只存在于 armbian 的内核树里，
 dtb-check 根本没碰过它 → 2026-10-21 的 Release 产物实测 9/13 档，
 而 dtb-check 全程绿灯。
 
 解法是两层：
-- **第 8 道**（本 workflow）比对上游 armbian 的 patch 目录与我们的禁用文件，
+- **第 9 道**（本 workflow）比对上游 armbian 的 patch 目录与我们的禁用文件，
   堵住三条静默失效的入口：上游改名 / 上游新增改 OPP 表的 patch /
   我们的 0 字节文件被误填内容。
 - **产物级检查**（在 `kernel-build` 里，见下）比对的是**真的编出来的 dtb**，
@@ -493,7 +540,7 @@ dtb-check 根本没碰过它 → 2026-10-21 的 Release 产物实测 9/13 档，
 ```
 
 **第 7 步为什么必须存在**：dtb-check 编译的是「板级 DTS + 未打 patch 的上游
-dtsi」，看不见 armbian 的 patch 污染（详见上文「第 8 道」）。
+dtsi」，看不见 armbian 的 patch 污染（详见上文「第 9 道」）。
 只有拿**真的编出来的 dtb** 去比，才能发现产物 OPP 表被多加了档。
 期望值取自 `gregkh/linux` 的 `linux-6.18.y` 分支（与 armbian 构建时
 KERNELSOURCE 指的 kernel.org stable/linux.git 同源）。
