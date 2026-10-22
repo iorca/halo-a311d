@@ -457,6 +457,68 @@ jobs:
           esac
           echo ">>> 产物校验通过（target=$TARGET_KIND）"
 
+      - name: Verify the built DTB against upstream A311D OPP tables
+        # ⚠⚠⚠ 这是**唯一**能抓住「armbian 的 OPP patch 污染了产物」的检查。
+        #
+        # dtb-check 的 OPP 检查（第 5 道）编译的是「板级 DTS + **未打 patch 的**
+        # 上游 dtsi」→ 永远只有 7/11 档。armbian 的 patch 只存在于 armbian 的
+        # 内核树里，dtb-check 根本没碰过它。
+        #   → 2026-10-21 的 Release 产物实测 9 档 / 13 档（顶 2.4GHz/1040mV），
+        #     而 dtb-check 全程绿灯。**产物级**检查才能堵住。
+        #
+        # 这里比的是**这次真的编出来的 dtb**（out-halo/ 里的），期望值取自
+        # **未打 patch 的上游**（从 kernel.org stable 的 GitHub 镜像取，
+        # 与 armbian 构建时用的是同一个源）。
+        #
+        # 期望值绝不能取自 armbian 打过 patch 的内核树 —— 那样就是「自己跟
+        # 自己比」，被污染时照样全绿（这正是 dtb-check 抓不到的原因）。
+        run: |
+          set -eu
+          cd "$GITHUB_WORKSPACE/armbian-build"
+
+          # 本板内核的 dtb（两个变体）
+          DTBS=$(find out-halo -maxdepth 1 -name '*halo-a311d*.dtb' 2>/dev/null || true)
+          if [ -z "$DTBS" ]; then
+              echo "::notice::out-halo 里没有本板 dtb（target=$TARGET_KIND 不产 dtb），跳过 OPP 产物校验"
+              exit 0
+          fi
+
+          # ⚠ 取**未打 patch** 的上游 dtsi
+          #   armbian 构建时的内核源（构建日志里的 change-tracking）：
+          #     https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+          #     branch linux-6.18.y
+          #   这里用它的 GitHub 镜像 gregkh/linux 的同名分支，取到的内容一致。
+          #   不能用 armbian 那棵树 —— 它已经被 patch 改过了。
+          REFDIR="$RUNNER_TEMP/upstream-dtsi"
+          mkdir -p "$REFDIR"
+          BASE="https://raw.githubusercontent.com/gregkh/linux/linux-6.18.y/arch/arm64/boot/dts/amlogic"
+          for f in meson-g12b-a311d.dtsi meson-g12b-khadas-vim3.dtsi; do
+              curl -fsSL --retry 3 --max-time 60 "$BASE/$f" -o "$REFDIR/$f" || {
+                  echo "::error::取不到上游参考 $f"
+                  exit 1
+              }
+              test -s "$REFDIR/$f" || { echo "::error::上游参考 $f 是空文件"; exit 1; }
+          done
+          echo "--- 上游参考（未打 patch）---"
+          echo "  opp-hz 条数: $(grep -c 'opp-hz' "$REFDIR/meson-g12b-a311d.dtsi")"
+
+          fail=0
+          for d in $DTBS; do
+              echo "::group::产物 OPP 校验 $(basename "$d")"
+              if ! python3 "$GITHUB_WORKSPACE/scripts/check-opp-tables.py" \
+                   "$d" "$REFDIR/meson-g12b-a311d.dtsi" "$REFDIR/meson-g12b-khadas-vim3.dtsi"; then
+                  fail=1
+              fi
+              echo "::endgroup::"
+          done
+          if [ "$fail" -ne 0 ]; then
+              echo "::error::产物 dtb 的 CPU OPP 表与上游 A311D 不一致 —— 不要发布这个产物"
+              echo "::error::最可能的原因：armbian 的 CPU OPP 追加 patch 生效了"
+              echo "::error::（它在 common 层，对所有 meson64 板无条件生效）"
+              exit 1
+          fi
+          echo ">>> 产物 OPP 表与上游一致（$TARGET_KIND）"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v5
         with:
