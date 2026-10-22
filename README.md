@@ -428,7 +428,7 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 
 ### dtb-check（`ubuntu-24.04`）
 
-共 **8 道检查**（`dtb-check.yml`），每道都做过双向验证 ——
+共 **9 道检查**（`dtb-check.yml`），每道都做过双向验证 ——
 在正确代码上通过 + 在**真实坏产物**上报红：
 
 | # | 检查 | 脚本 | 拦什么 |
@@ -440,12 +440,39 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 | 5 | 每个 CPU 的 OPP 表与上游一致 | `check-opp-tables.py` | CPU 指向错误的 OPP 表 |
 | 6 | 每个 gpio-hog 都是内核认可的形式 | `check-gpio-hogs.py` | 内核完全不认的 hog 写法 |
 | 7 | DTB 符合内核 device-tree schema | `check-dtschema.py` | 属性名写错 / 必填属性缺失 |
-| 8 | 上传 DTB 产物 | — | 便于下载后做二进制级复核 |
+| 8 | armbian 的 CPU OPP patch 仍被禁用 | `check-opp-patch-disable.py` | 禁用机制静默失效 → 产物 OPP 表被污染 |
+| 9 | 上传 DTB 产物 | — | 便于下载后做二进制级复核 |
 
 **护栏的设计原则**：期望值一律取自**上游**，不采信被测板级 DTS 自己的声明
 （否则「板级把 CPU 指到错误的表」这类错误永远发现不了 —— 自洽但都是错的）。
 
-流程：`Verify toolchain` → `Sparse-clone dts` → 上述 8 道检查 → 上传 DTB。
+流程：`Verify toolchain` → `Sparse-clone dts` → 上述 9 道检查 → 上传 DTB。
+
+> ⚠ **`paths` 过滤必须覆盖 `scripts/` 与 `patch/`。**
+> 原来只有 `dt/**` 和 `.github/workflows/**` → 改这两个目录下的文件
+> **不触发任何检查**（2026-10-22 的 `44d73fa` 就这样在零检查的情况下推上 main）。
+
+#### 第 8 道：为什么 dtb-check 单独抓不到 OPP 污染
+
+armbian/build 的 `patch/kernel/archive/meson64-*/` 下有
+`board-odroidn2plus-Add-missing-CPU-opp.patch`，给上游
+`meson-g12b-a311d.dtsi` 追加 4 个高频 OPP 档（顶 2.4GHz/1040mV）。
+本板 regulator 上限 1050 mV → 顶档余量仅 **10 mV**。
+
+它落在 patch 目录的 **common 层**，对**所有** meson64 板无条件生效
+（同一 deb 里的 khadas-vim3.dtb 也是 9/13 档 —— 证据）。
+
+**第 5 道抓不到它**：那一道编译的是「板级 DTS + **未打 patch 的**上游 dtsi」
+→ 永远只有 7/11 档。armbian 的 patch 只存在于 armbian 的内核树里，
+dtb-check 根本没碰过它 → 2026-10-21 的 Release 产物实测 9/13 档，
+而 dtb-check 全程绿灯。
+
+解法是两层：
+- **第 8 道**（本 workflow）比对上游 armbian 的 patch 目录与我们的禁用文件，
+  堵住三条静默失效的入口：上游改名 / 上游新增改 OPP 表的 patch /
+  我们的 0 字节文件被误填内容。
+- **产物级检查**（在 `kernel-build` 里，见下）比对的是**真的编出来的 dtb**，
+  期望值取自**未打 patch 的上游**。这才是唯一能看见污染的那一层。
 
 > ⚠ 第 7 道用的 dt-validate 会把**原始诊断**（`*.schema.txt` / `*.schema.json`）
 > 一并上传为 artifact —— 便于独立复核「豁免根节点自研 compatible」这个判断
@@ -460,8 +487,22 @@ RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
 4. Inject board files    deploy-to-build.sh + 存在性校验
 5. Build kernel          ./compile.sh <target> BOARD=halo-a311d BRANCH=current
 6. Collect artifacts     ⭐ 按 target 硬校验必需产物，缺了 exit 1
-7. Publish Release       ⭐ 仅 target=build（唯一产出可刷镜像的 target）；缺镜像则 exit 1
+7. Verify DTB OPP        ⭐ 拿真的编出来的 dtb 比对**未打 patch 的上游**；不符则 exit 1
+8. Upload artifacts      产物与 DTB
+9. Publish Release       ⭐ 仅 target=build（唯一产出可刷镜像的 target）；缺镜像则 exit 1
 ```
+
+**第 7 步为什么必须存在**：dtb-check 编译的是「板级 DTS + 未打 patch 的上游
+dtsi」，看不见 armbian 的 patch 污染（详见上文「第 8 道」）。
+只有拿**真的编出来的 dtb** 去比，才能发现产物 OPP 表被多加了档。
+期望值取自 `gregkh/linux` 的 `linux-6.18.y` 分支（与 armbian 构建时
+KERNELSOURCE 指的 kernel.org stable/linux.git 同源）。
+
+> ⚠ **Release 的 tag 必须指向本次构建的 commit。**
+> `gh release create` 在 tag 不存在时会让 GitHub 用**默认分支 HEAD** 建 tag
+> → 本仓库默认分支是 main，mainline 线的 tag 就会指向 main 的 commit
+> （10.22 实测两条线的 tag 全指向 main）。现在 workflow 自己用 API 管 tag，
+> 期望 commit 取 `$GITHUB_SHA`。
 
 > 步骤 7 在 `kernel`/`uboot`/`rootfs`/`firmware` 时会 skipped —— 那几个 target
 > 不产 `.img`，发的 Release 也没意义，不是失败。
