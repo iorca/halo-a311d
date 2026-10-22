@@ -98,6 +98,57 @@ install -m 0644 "$REPO_ROOT/dt/meson-halo-a311d-pcie.dts" "$DT_DIR/"
 echo "✓ $DT_DIR  (BRANCH=$BRANCH_NAME → KERNEL_MAJOR_MINOR=$KMM)"
 
 # -----------------------------------------------------------------------------
+# 4b. 禁用 armbian 的 CPU OPP 追加 patch
+# -----------------------------------------------------------------------------
+# ⚠⚠ 为什么需要这个：
+#
+#   armbian/build 的 patch/kernel/archive/meson64-*/ 下有一个
+#   board-odroidn2plus-Add-missing-CPU-opp.patch，
+#   它给上游 arch/arm64/boot/dts/amlogic/meson-g12b-a311d.dtsi
+#   **追加了 4 个高频 OPP 档**：
+#
+#     opp-table-0: + 1.908GHz(1030mV)  + 2.016GHz(1040mV)
+#     opp-table-1: + 2.304GHz(1030mV)  + 2.4GHz(1040mV)
+#
+#   它落在 patch 目录的**根层（common）**，而 armbian 的
+#   patching.py:106 find_files_patch_files() 会把该目录下**所有**
+#   .patch 收进来（该目录无 series.conf）→ 对所有 meson64 板无条件生效，
+#   与 BOARD 无关。实测已确认：Release 里的 dtb 就是 9 档 / 13 档。
+#
+#   这 4 档是为 **ODROID-N2+（S922X）** 加的。上游
+#   meson-g12b-odroid-n2-plus.dts:10 自己注释写着
+#   "The Amlogic S922X Rev. C supports the same OPPs as the A311D variant"
+#   —— S922X Rev.C 与 A311D 共用同一张 OPP 表，所以 a311d.dtsi 实际是
+#   g12b 家族共用的表容器。但那 4 档**没有针对 A311D 单独验证过**。
+#
+#   而本板两个 regulator 的 regulator-max-microvolt = <1050000>（1050 mV），
+#   顶档 1040 mV → 余量仅 10 mV（上游原表顶档 1011 mV，余量 39 mV）。
+#
+#   → 决定：**不要**这 4 档，回到上游原生的 7 / 11 档。
+#     真机验证 2.4GHz 稳不稳之后，再决定是否恢复。
+#
+#   实现方式（armbian 的机制，lib/tools/patching.py:188-191）：
+#     "An empty patch file disables the same-named patch
+#      from a lower priority directory."
+#   → 在 user 层放一个**0 字节**的同名文件即可禁用，无需写反向 patch。
+#     user 层优先（patching.py:85-93, 104）+ 同名替换（:172-174）。
+#
+#   路径必须是 userpatches/kernel/archive/meson64-<KMM>/
+#   （PATCH_TYPE=kernel，PATCH_DIRS_TO_APPLY=KERNELPATCHDIR=archive/meson64-<KMM>）
+#   —— 与上面的 dt 目录同级。
+# -----------------------------------------------------------------------------
+PATCH_DIR="$UP/kernel/archive/meson64-${KMM}"
+SRC_PATCH="$REPO_ROOT/patch/kernel/archive/meson64-${KMM}"
+if [ -d "$SRC_PATCH" ]; then
+    for p in "$SRC_PATCH"/*.patch; do
+        [ -e "$p" ] || continue
+        mkdir -p "$PATCH_DIR"
+        install -m 0644 "$p" "$PATCH_DIR/"
+        echo "✓ 禁用 patch: $(basename "$p")  (0 字节 = 禁用 armbian 同名 patch)"
+    done
+fi
+
+# -----------------------------------------------------------------------------
 # 4. U-Boot 模式选择脚本（冷切换）
 # -----------------------------------------------------------------------------
 # ⚠⚠ 旧代码是个**假成功**（2026-10-21 查出）:
