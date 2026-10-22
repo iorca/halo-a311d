@@ -14,7 +14,9 @@ name: dtb-check
 
 on:
   push:
-    branches: [main]
+    # ⚠ 两条发行线都要触发 —— 同步检查只在被改的那条线上跑才有意义。
+    #   以前只有 main：gxlimg 改了 dt/ 而 main 没同步 → 没有任何检查会红。
+    branches: [main, gxlimg-full-mainline-uboot]
     paths:
       - 'dt/**'
       # ⚠ scripts/ 与 patch/ 也要触发：
@@ -24,6 +26,7 @@ on:
       # 让 44d73fa（只改 patch/ 与 scripts/）在零检查的情况下推上 main。
       - 'scripts/**'
       - 'patch/**'
+      - 'fip-blob/**'
       - '.github/workflows/**'
   pull_request:
     paths:
@@ -60,6 +63,38 @@ jobs:
           command -v cpp || { echo "::error::cpp (gcc) 缺失"; exit 1; }
           dtc --version
           echo "cpp: $(cpp --version | head -1)"
+
+      - name: Verify the two release lines are in sync
+        # ⚠⚠⚠ 人总会把 commit 提交到错误的分支。
+        #   2026-10-22 一天之内就犯了两次：cherry-pick 到 gxlimg 之后忘了
+        #   切回 main，后续的改动全落到了 gxlimg 上。
+        #
+        #   为什么 CI 抓不到？两条线的 .github/workflows/kernel.yml 与
+        #   scripts/check-*.py **内容完全相同** → 提交错分支不会让任何
+        #   检查变红，板级 DTS / 禁用 patch 就会静默漂移，两条线的产物
+        #   行为不一致却没人知道。
+        #
+        #   这一步直接比对**两个远端分支的树**：
+        #   · dt/ patch/ .github/workflows/ scripts/（除 deploy 脚本）
+        #     必须逐字节相同
+        #   · deploy-to-build.sh 必须是「gxlimg ⊇ main」（超集）
+        #   · fip-blob/ 只允许 gxlimg 有
+        #   任何漏同步立刻报红。
+        #
+        #   放在最前面 —— 它只要 1~2 秒，早失败早省钱。
+        run: |
+          set -eu
+          # checkout 默认是浅克隆且只带当前分支 → 另一个分支的 ref 必须显式 fetch
+          git fetch --no-tags --depth=1 origin \
+            main:refs/remotes/origin/main \
+            gxlimg-full-mainline-uboot:refs/remotes/origin/gxlimg-full-mainline-uboot
+          echo "--- 已获取的两个分支 ---"
+          git log --oneline -1 origin/main
+          git log --oneline -1 origin/gxlimg-full-mainline-uboot
+          python3 "$GITHUB_WORKSPACE/scripts/check-branch-sync.py" \
+            --repo "$GITHUB_WORKSPACE" \
+            --ref-a origin/main \
+            --ref-b origin/gxlimg-full-mainline-uboot
 
       - name: Sparse-clone kernel dts
         run: |
