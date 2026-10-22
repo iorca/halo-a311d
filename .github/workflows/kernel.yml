@@ -50,7 +50,14 @@ on:
       - 'config/**'
       - 'fip-blob/**'
       - 'boot/**'
-      - 'scripts/**'
+      # ⚠⚠ 只精确到**会被 deploy-to-build.sh 拷进 armbian 构建目录**的两个脚本。
+      #   scripts/ 下其余文件（check-*.py、sync-to-both-lines.sh 等）**只被
+      #   CI 的 dtb-check 使用**，deploy 脚本一个都不会拷进构建目录 ——
+      #   改它们不可能影响内核产物。
+      #   原来写 'scripts/**' → 2026-10-22 改一次检查脚本就白烧了一次
+      #   40 分钟的内核构建（run 39749410064，构建输入其实完全没变）。
+      - 'scripts/deploy-to-build.sh'
+      - 'scripts/customize-image.sh'
       - '.github/workflows/kernel.yml'
   workflow_dispatch:
     inputs:
