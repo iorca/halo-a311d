@@ -477,11 +477,25 @@ jobs:
           cd "$GITHUB_WORKSPACE/armbian-build"
 
           # 本板内核的 dtb（两个变体）
+          # ⚠ glob 必须与 Collect artifacts 步骤**完全一致**（那边用
+          #   find . -name '*halo-a311d*.dtb' 再 cp 到 out-halo/），
+          #   否则会"一个找得到、另一个找不到"。
           DTBS=$(find out-halo -maxdepth 1 -name '*halo-a311d*.dtb' 2>/dev/null || true)
           if [ -z "$DTBS" ]; then
-              echo "::notice::out-halo 里没有本板 dtb（target=$TARGET_KIND 不产 dtb），跳过 OPP 产物校验"
+              # ⚠⚠ target=kernel / build **必须**有 dtb —— Collect artifacts
+              #   步骤已经保证过（找不到它自己就 exit 1 了）。到这里还找不到，
+              #   说明 glob 漂了 / 产物被挪走 → **硬失败**，
+              #   绝不能 exit 0 静默跳过（那等于这道护栏永远绿）。
+              if [ "$TARGET_KIND" = "kernel" ] || [ "$TARGET_KIND" = "build" ]; then
+                  echo "::error::target=$TARGET_KIND 但 out-halo/ 里找不到本板 dtb —— OPP 产物校验无法进行"
+                  echo "::error::（glob 必须与 Collect artifacts 步骤保持一致）"
+                  exit 1
+              fi
+              echo "::notice::target=$TARGET_KIND 不产 dtb，跳过 OPP 产物校验"
               exit 0
           fi
+          echo "--- 待校验的产物 dtb ---"
+          for d in $DTBS; do echo "  $d"; done
 
           # ⚠ 取**未打 patch** 的上游 dtsi
           #   armbian 构建时的内核源（构建日志里的 change-tracking）：
@@ -797,10 +811,15 @@ jobs:
           #   → 报 "tag xxx doesn't exist in the repo armbian/build"
           #   tag 本就是触发本次 run 的前提，存在性无需再验。
           #   --repo 显式指定目标仓库，避免 gh 猜错 remote。
+          # ⚠ --target 显式给 $GITHUB_SHA：tag 虽然已由上面的 API 逻辑建好
+          #   （tag 存在时 gh 不会碰它），但 Release 对象的 targetCommitish
+          #   字段缺省是 **default branch**（= main）→ Release 页面会显示
+          #   "main" ，容易被误读成"mainline 线是 main 的代码"。
           gh release create "$TAG" \
             --title "halo-a311d $TAG" \
             --notes-file "$NOTES" \
             --repo "${{ github.repository }}" \
+            --target "$GITHUB_SHA" \
             "$STAGE"/*
 
           echo
