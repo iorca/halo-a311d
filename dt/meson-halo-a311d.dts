@@ -41,6 +41,7 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/amlogic,meson-g12a-gpio-intc.h>
 /* ⚠⚠ 只能 include a311d 这一份，**不要**再 include meson-g12b-s922x.dtsi。
  *
  *   原因：两个 dtsi 都在根节点下定义**同名** opp-table-0 / opp-table-1
@@ -421,6 +422,14 @@
  *   → RX 由 MAC 加（rx-internal-delay-ps=2000，范围 0..3000ps/200ps 步进）
  *
  * ⚠ 禁用 phy-mode="rgmii-id"：PHY strap TXDLY 已开，会与 MAC 叠加成 4ns
+ *
+ * PHY 中断（RGMII_INT）:
+ *   路径（底板网表实测）: SoC GPIOZ_14 → CN3-4 → R59(0Ω) → U23.31 (PHY 的 INTR)
+ *   方向: PHY → SoC（PHY 的中断输出，驱动 SoC）
+ *   极性: 低有效（INTR_N）→ 下降沿
+ *   中断号: IRQID_GPIOZ_14 = 26
+ *           (dt-bindings/interrupt-controller/amlogic,meson-g12a-gpio-intc.h)
+ *   GPIOZ_14 的芯片复用功能是 eth_link_led；作普通 GPIO 输入不需要 pinctrl mux
  */
 &ethmac {
 	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
@@ -437,6 +446,14 @@
 		/* Realtek RTL8211F (0x001cc916) */
 		reg = <1>;
 		max-speed = <1000>;
+
+		/*
+		 * PHY 中断（RGMII_INT）:
+		 *   SoC GPIOZ_14 → CN3-4 → R59(0Ω) → U23.31 (PHY 的 INTR)
+		 *   低有效 → 下降沿；IRQID_GPIOZ_14 = 26
+		 */
+		interrupt-parent = <&gpio_intc>;
+		interrupts = <IRQID_GPIOZ_14 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
