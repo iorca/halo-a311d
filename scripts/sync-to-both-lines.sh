@@ -100,11 +100,19 @@ for BR in "$MAIN_BRANCH" "$GX_BRANCH"; do
         fail "$BR 状态不一致，已停下"
     fi
 
-    # ⚠ 判定"这个 commit 的内容是否已经在目标分支上"必须用 **patch-id**，
+    # ⚠⚠ 判定"这个 commit 的内容是否已经在目标分支上"必须用 **patch-id**，
     #   不能用 sha —— cherry-pick 出来的 commit sha 必然不同（内容一样、sha 不同），
     #   用 sha 判定会重复 cherry-pick → 撞上 "previous cherry-pick is now empty"。
-    #   `git cherry <upstream> <head>` 的输出里 `-` 前缀 = 该补丁已在 upstream 中。
-    if git cherry "$BR" "$COMMIT_SHA" 2>/dev/null | grep -q '^-'; then
+    #
+    #   `git cherry <目标分支> <commit>` 的语义（实测过，别再猜）：
+    #     · 它按 **patch-id** 比较，不看 sha
+    #     · 输出里**每行都带 +/- 前缀**（不带 -v 也带！）
+    #       `+` = 该补丁不在目标分支上；`-` = 已在
+    #     · **补丁已在目标分支上的那个 commit，整行不会出现**
+    #     · 查询的 commit 自身若已在目标分支 → 输出为空
+    #   → 所以判据是「输出里有没有这个 sha」，而不是「有没有 '-' 行」。
+    if git cherry "$BR" "$COMMIT_SHA" 2>/dev/null | \
+            awk -v s="$COMMIT_SHA" '$1 == s { found = 1 } END { exit !found }'; then
         echo "  本地已包含 $COMMIT_SHORT（按 patch-id 判定）"
     else
         echo "  cherry-pick $COMMIT_SHORT ..."
