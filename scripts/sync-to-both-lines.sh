@@ -100,9 +100,12 @@ for BR in "$MAIN_BRANCH" "$GX_BRANCH"; do
         fail "$BR 状态不一致，已停下"
     fi
 
-    if git merge-base --is-ancestor "$COMMIT_SHA" "$BR" 2>/dev/null; then
-        # 该 commit 已经在**本地**这条分支上
-        echo "  本地已包含 $COMMIT_SHORT"
+    # ⚠ 判定"这个 commit 的内容是否已经在目标分支上"必须用 **patch-id**，
+    #   不能用 sha —— cherry-pick 出来的 commit sha 必然不同（内容一样、sha 不同），
+    #   用 sha 判定会重复 cherry-pick → 撞上 "previous cherry-pick is now empty"。
+    #   `git cherry <upstream> <head>` 的输出里 `-` 前缀 = 该补丁已在 upstream 中。
+    if git cherry "$BR" "$COMMIT_SHA" 2>/dev/null | grep -q '^-'; then
+        echo "  本地已包含 $COMMIT_SHORT（按 patch-id 判定）"
     else
         echo "  cherry-pick $COMMIT_SHORT ..."
         if ! git cherry-pick "$COMMIT_SHA"; then
