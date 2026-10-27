@@ -52,6 +52,7 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/amlogic,meson-g12a-gpio-intc.h>
 /* ⚠⚠ 只能 include a311d 这一份，**不要**再 include meson-g12b-s922x.dtsi。
  * 详见 meson-halo-a311d.dts 里同段注释（同名 opp-table 会被 dtc 合并成混搭表）。
  */
@@ -429,6 +430,14 @@
 		/* Realtek RTL8211F (0x001cc916) */
 		reg = <1>;
 		max-speed = <1000>;
+
+		/*
+		 * PHY 中断（RGMII_INT）:
+		 *   SoC GPIOZ_14 → CN3-4 → R59(0Ω) → U23.31 (PHY 的 INTR)
+		 *   低有效 → 下降沿；IRQID_GPIOZ_14 = 26
+		 */
+		interrupt-parent = <&gpio_intc>;
+		interrupts = <IRQID_GPIOZ_14 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
