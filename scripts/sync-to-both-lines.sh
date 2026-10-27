@@ -100,32 +100,24 @@ for BR in "$MAIN_BRANCH" "$GX_BRANCH"; do
         fail "$BR 状态不一致，已停下"
     fi
 
-    # ⚠⚠ 判定「这个 commit 的补丁是否已经在目标分支上」必须用 **patch-id**，
-    #   不能用 sha —— cherry-pick 出来的 commit sha 必然不同（内容一样、sha 不同），
-    #   用 sha 判定会重复 cherry-pick → 撞上 "previous cherry-pick is now empty"。
-    #
-    #   `git cherry <目标分支> <commit>` 的语义（实测三轮，别再猜）:
-    #     · 它比较的是 **patch-id**，与 sha 无关
-    #     · 输出**每行格式 = `<符号> <sha> <subject>`**（不带 -v 也这样）
-    #         `+` = 该补丁**不**在目标分支上 → 需要 cherry-pick
-    #         `-` = 该补丁**已**在目标分支上 → 跳过
-    #     · 输出的是 head 的整个祖先链相对 upstream 的差集，不是只有被查的那一个
-    #
-    #   → 判据要覆盖**两种**「已在目标分支」的情况：
-    #       ① 同一个 sha（本来就是那条分支的祖先）→ `git cherry` 的差集里
-    #          **压根没有它**（upstream 已含该 commit）→ 必须用 is-ancestor 判
-    #       ② 不同 sha 但 patch-id 相同（cherry-pick 的产物）
-    #          → `git cherry` 输出里它是 `- <sha> <subject>`
-    if git merge-base --is-ancestor "$COMMIT_SHA" "$BR" 2>/dev/null || \
-       git cherry "$BR" "$COMMIT_SHA" 2>/dev/null | \
-            awk -v s="$COMMIT_SHA" '$1 == "-" && $2 == s { found = 1 } END { exit !found }'; then
-        echo "  本地已包含 $COMMIT_SHORT（按 patch-id 判定）"
-    else
-        echo "  cherry-pick $COMMIT_SHORT ..."
-        if ! git cherry-pick "$COMMIT_SHA"; then
+    # ⚠⚠ 这里**不做事前判定**「补丁是否已在目标分支上」——
+    #   试过三种判据全部不可靠：
+    #     · sha 判定 → cherry-pick 的产物 sha 必然不同 → 重复 cherry-pick → empty 报错
+    #     · patch-id 判定（git cherry）→ 手工解决过冲突的 cherry-pick 产生的
+    #       patch-id 与源 commit 不同 → 判成"不在" → 同样重复 cherry-pick
+    #   改为**直接试**：能干净应用就应用；报 empty 就跳过（说明补丁已在）；
+    #   真冲突才停下让人处理。
+    #   一致性由后面的 check-branch-sync.py 兜底验证。
+    echo "  cherry-pick $COMMIT_SHORT ..."
+    if ! git cherry-pick "$COMMIT_SHA"; then
+        if git ls-files -u | grep -q .; then
+            # 有 unmerged 条目 → **真冲突** → 停下，把决定权留给人
             echo "  cherry-pick 冲突 —— 已保留现场，处理完执行 git cherry-pick --continue" >&2
-            fail "cherry-pick 失败"
+            fail "cherry-pick 冲突，已停下"
         fi
+        # 没有冲突条目 → 是 empty（补丁已在目标分支上）→ 跳过
+        git cherry-pick --skip >/dev/null 2>&1 || true
+        echo "    (该补丁已在目标分支上，跳过)"
     fi
 done
 
