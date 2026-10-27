@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# =============================================================================
+# pre-commit hook —— 强制显式声明目标分支
+#
+# ## 为什么需要
+#
+# 2026-10-27 一天之内，因为"提交到了错误的分支"犯了**三次**。
+# 每次的根因都一样：
+#
+#     git branch --show-current && git add ... && git commit ...
+#     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 输出混在长命令的输出里，看漏了
+#
+# 分支名看漏 → commit 落到另一条线 → **CI 全绿**（两条线的 workflow 与
+# 检查脚本内容完全相同）→ 板级 DTS 静默漂移，直到几小时后才被发现。
+#
+# 光在记忆里写"提交前先看分支"是没用的 —— 写了三次纪律，犯了三次错。
+# 所以改成**机制**：不显式声明目标分支，就不让提交。
+#
+# ## 用法
+#
+#     TARGET_BRANCH=main git commit -m "..."
+#
+# 声明的分支必须与当前所在分支一致。不一致 → 拒绝。
+#
+# ## 例外（放行）
+#
+# cherry-pick / merge / rebase —— 目标天然就是当前分支，是**故意的**同步操作。
+#
+# ## 安装
+#
+#     cp scripts/hooks/pre-commit .git/hooks/pre-commit
+#     chmod +x .git/hooks/pre-commit
+# =============================================================================
+set -u
+
+GIT_DIR="$(git rev-parse --git-dir)"
+
+# ---- 同步类操作放行（目标就是当前分支，属于故意的行为）----
+if [ -f "$GIT_DIR/CHERRY_PICK_HEAD" ] || \
+   [ -f "$GIT_DIR/MERGE_HEAD" ] || \
+   [ -d "$GIT_DIR/rebase-merge" ] || \
+   [ -d "$GIT_DIR/rebase-apply" ]; then
+    exit 0
+fi
+
+current="$(git branch --show-current 2>/dev/null || true)"
+
+if [ -z "$current" ]; then
+    echo "" >&2
+    echo "❌ 预提交钩子：当前处于分离 HEAD（detached HEAD），不允许提交。" >&2
+    echo "   先 git checkout <目标分支> 再提交。" >&2
+    echo "" >&2
+    exit 1
+fi
+
+target="${TARGET_BRANCH:-}"
+
+if [ -z "$target" ]; then
+    echo "" >&2
+    echo "❌ 预提交钩子：必须显式声明目标分支。" >&2
+    echo "" >&2
+    echo "   当前分支: $current" >&2
+    echo "   正确用法: TARGET_BRANCH=$current git commit -m \"...\"" >&2
+    echo "" >&2
+    echo "   为什么要这样：2026-10-27 一天之内因为提交到错误的分支犯了三次，" >&2
+    echo "   而两次都是因为「看漏了 git branch --show-current 的输出」。" >&2
+    echo "   显式声明 = 把意图写下来，让机器替你核对。" >&2
+    echo "" >&2
+    exit 1
+fi
+
+if [ "$target" != "$current" ]; then
+    echo "" >&2
+    echo "❌ 预提交钩子：声明的目标分支与当前分支不一致 —— 拒绝提交。" >&2
+    echo "" >&2
+    echo "   TARGET_BRANCH = $target" >&2
+    echo "   当前分支      = $current" >&2
+    echo "" >&2
+    echo "   这正是「提交到错误分支」的入口。请先：" >&2
+    echo "       git checkout $target" >&2
+    echo "   确认后再提交。" >&2
+    echo "" >&2
+    exit 1
+fi
+
+exit 0

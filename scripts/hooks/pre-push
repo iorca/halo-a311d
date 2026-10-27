@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# =============================================================================
+# pre-push hook —— 推送前检查两条发行线是否同步
+#
+# ## 为什么需要
+#
+# pre-commit 拦住「提交到错误的分支」，但拦不住这些情况：
+#
+#   · 只在一条分支上提交、忘了同步到另一条
+#   · 同步了但漏了某个文件（手抄文件的经典失误）
+#   · cherry-pick 到了另一条线，但内容与原提交不一致
+#
+# 这些都会导致两条发行线的板级 DTS 静默漂移 —— **CI 全绿**，因为两条线的
+# workflow 与检查脚本内容完全相同。
+#
+# 这里直接复用 `scripts/check-branch-sync.py`（dtb-check 第 1 道检查的同一份
+# 逻辑），用**这次推送之后**的状态去比对，不同步就拒绝推送。
+#
+# ## 例外
+#
+# · 推 tag（refs/tags/*）→ 放行。发版推 tag 是正常流程。
+# · fetch 失败 → 警告后放行（网络问题不该挡住推送）。
+#
+# ## 安装
+#
+#     cp scripts/hooks/pre-push .git/hooks/pre-push
+#     chmod +x .git/hooks/pre-push
+# =============================================================================
+set -u
+
+remote="${1:-origin}"
+ROOT="$(git rev-parse --show-toplevel)"
+
+# ---- 读 stdin（GitHub 把要推的 ref 一行一条喂进来）----
+pushing_branch=0
+while read -r local_ref _local_sha _remote_ref _remote_sha; do
+    case "$local_ref" in
+        refs/heads/*) pushing_branch=1 ;;
+    esac
+done
+
+# 只推 tag → 不涉及分支同步，放行
+[ "$pushing_branch" = "1" ] || exit 0
+
+MAIN_SHA="$(git rev-parse main 2>/dev/null || true)"
+GX_SHA="$(git rev-parse gxlimg-full-mainline-uboot 2>/dev/null || true)"
+
+# 本地没有这两条分支（比如只 clone 了一条）→ 无从检查，放行
+[ -n "$MAIN_SHA" ] && [ -n "$GX_SHA" ] || exit 0
+
+# ---- 拉远端最新，否则比的是过期状态 ----
+if ! git fetch --quiet "$remote" \
+        "+refs/heads/main:refs/remotes/origin/main" \
+        "+refs/heads/gxlimg-full-mainline-uboot:refs/remotes/origin/gxlimg-full-mainline-uboot" \
+        2>/dev/null; then
+    echo "⚠ 预推送钩子：fetch 远端失败，跳过同步检查（不阻塞推送）" >&2
+    exit 0
+fi
+
+# ---- 用「推送之后」的状态构造临时 ref ----
+# 放 refs/prepush/ 而不是 refs/heads/ —— 前者不会被任何 git push 匹配到
+git update-ref refs/prepush/a "$MAIN_SHA"
+git update-ref refs/prepush/b "$GX_SHA"
+
+python3 "$ROOT/scripts/check-branch-sync.py" \
+    --repo "$ROOT" \
+    --ref-a refs/prepush/a \
+    --ref-b refs/prepush/b
+rc=$?
+
+git update-ref -d refs/prepush/a 2>/dev/null
+git update-ref -d refs/prepush/b 2>/dev/null
+
+if [ "$rc" -ne 0 ]; then
+    echo "" >&2
+    echo "❌ 预推送钩子：两条发行线不同步 —— 拒绝推送。" >&2
+    echo "" >&2
+    echo "   修法：./scripts/sync-to-both-lines.sh" >&2
+    echo "   （确实要推不同步的状态，用 git push --no-verify）" >&2
+    echo "" >&2
+    exit 1
+fi
+
+exit 0
