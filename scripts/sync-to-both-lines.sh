@@ -103,21 +103,28 @@ for BR in "$MAIN_BRANCH" "$GX_BRANCH"; do
     if git merge-base --is-ancestor "$COMMIT_SHA" "$BR" 2>/dev/null; then
         # 该 commit 已经在**本地**这条分支上
         echo "  本地已包含 $COMMIT_SHORT"
-        AHEAD="$(git rev-list --count "origin/$BR..$BR")"
-        if [ "$AHEAD" -gt 0 ]; then
-            git push origin "$BR"
-            echo "  已推送 $BR（本地领先 $AHEAD 个提交）"
-        else
-            echo "  与远端一致，无需推送"
-        fi
     else
         echo "  cherry-pick $COMMIT_SHORT ..."
         if ! git cherry-pick "$COMMIT_SHA"; then
             echo "  cherry-pick 冲突 —— 已保留现场，处理完执行 git cherry-pick --continue" >&2
             fail "cherry-pick 失败"
         fi
+    fi
+done
+
+# ---------------------------------------------------------------- 推送
+# ⚠⚠ 必须**先在两条本地分支都同步完，再一起推送**。
+#   边同步边推会撞上 pre-push 钩子：推第一条时另一条还没同步 →
+#   钩子判定"两条线不同步" → 拒绝推送 → 死锁。
+#   （2026-10-27 实测踩到：推送 hook 本身的那个 commit 时就是这个顺序。）
+say "推送"
+for BR in "$MAIN_BRANCH" "$GX_BRANCH"; do
+    AHEAD="$(git rev-list --count "origin/$BR..$BR")"
+    if [ "$AHEAD" -gt 0 ]; then
         git push origin "$BR"
-        echo "  已推送 $BR"
+        echo "  已推送 $BR（本地领先 $AHEAD 个提交）"
+    else
+        echo "  $BR 与远端一致，无需推送"
     fi
 done
 
