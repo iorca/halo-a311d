@@ -100,19 +100,25 @@ for BR in "$MAIN_BRANCH" "$GX_BRANCH"; do
         fail "$BR 状态不一致，已停下"
     fi
 
-    # ⚠⚠ 判定"这个 commit 的内容是否已经在目标分支上"必须用 **patch-id**，
+    # ⚠⚠ 判定「这个 commit 的补丁是否已经在目标分支上」必须用 **patch-id**，
     #   不能用 sha —— cherry-pick 出来的 commit sha 必然不同（内容一样、sha 不同），
     #   用 sha 判定会重复 cherry-pick → 撞上 "previous cherry-pick is now empty"。
     #
-    #   `git cherry <目标分支> <commit>` 的语义（实测过，别再猜）：
-    #     · 它按 **patch-id** 比较，不看 sha
-    #     · 输出里**每行都带 +/- 前缀**（不带 -v 也带！）
-    #       `+` = 该补丁不在目标分支上；`-` = 已在
-    #     · **补丁已在目标分支上的那个 commit，整行不会出现**
-    #     · 查询的 commit 自身若已在目标分支 → 输出为空
-    #   → 所以判据是「输出里有没有这个 sha」，而不是「有没有 '-' 行」。
-    if git cherry "$BR" "$COMMIT_SHA" 2>/dev/null | \
-            awk -v s="$COMMIT_SHA" '$1 == s { found = 1 } END { exit !found }'; then
+    #   `git cherry <目标分支> <commit>` 的语义（实测三轮，别再猜）:
+    #     · 它比较的是 **patch-id**，与 sha 无关
+    #     · 输出**每行格式 = `<符号> <sha> <subject>`**（不带 -v 也这样）
+    #         `+` = 该补丁**不**在目标分支上 → 需要 cherry-pick
+    #         `-` = 该补丁**已**在目标分支上 → 跳过
+    #     · 输出的是 head 的整个祖先链相对 upstream 的差集，不是只有被查的那一个
+    #
+    #   → 判据要覆盖**两种**「已在目标分支」的情况：
+    #       ① 同一个 sha（本来就是那条分支的祖先）→ `git cherry` 的差集里
+    #          **压根没有它**（upstream 已含该 commit）→ 必须用 is-ancestor 判
+    #       ② 不同 sha 但 patch-id 相同（cherry-pick 的产物）
+    #          → `git cherry` 输出里它是 `- <sha> <subject>`
+    if git merge-base --is-ancestor "$COMMIT_SHA" "$BR" 2>/dev/null || \
+       git cherry "$BR" "$COMMIT_SHA" 2>/dev/null | \
+            awk -v s="$COMMIT_SHA" '$1 == "-" && $2 == s { found = 1 } END { exit !found }'; then
         echo "  本地已包含 $COMMIT_SHORT（按 patch-id 判定）"
     else
         echo "  cherry-pick $COMMIT_SHORT ..."
