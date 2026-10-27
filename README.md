@@ -79,12 +79,26 @@ git push origin v2026.10.21-mainline
 而两条线的 `.github/workflows/` 与 `scripts/check-*.py` 内容**完全相同** →
 提交错分支**不会**让任何检查变红 → 板级 DTS 静默漂移，两条线产物行为不一致。
 
-为此有三道保险：
+为此有四道保险：
 
-1. **CI 第 10 道检查**（`scripts/check-branch-sync.py`）
+1. **本地 git hook**（`scripts/hooks/`）—— 最早拦截，在本地就发生：
+   ```bash
+   cp scripts/hooks/pre-commit .git/hooks/pre-commit
+   cp scripts/hooks/pre-push   .git/hooks/pre-push
+   chmod +x .git/hooks/pre-commit .git/hooks/pre-push
+   ```
+   - `pre-commit`：**必须显式声明目标分支**，且声明要与当前分支一致，否则拒绝提交。
+     ```bash
+     TARGET_BRANCH=main git commit -m "..."
+     ```
+     > 为什么强制：2026-10-27 一天之内因为「看漏了 `git branch --show-current`
+     > 的输出」犯了三次。把它写进命令 = 把意图写下来，让机器替你核对。
+   - `pre-push`：推送前用 `scripts/check-branch-sync.py` 比对**推送之后**的
+     两条线，不同步就拒绝推送（推 tag 放行）。
+2. **CI 第 10 道检查**（`scripts/check-branch-sync.py`）
    直接比对两个远端分支的树，任何漏同步立刻报红。
    `dtb-check.yml` 在**两条分支**上都会触发（`push.branches` 含两者）。
-2. **本地一条命令同步**（`scripts/sync-to-both-lines.sh`）
+3. **本地一条命令同步**（`scripts/sync-to-both-lines.sh`）
    ```bash
    ./scripts/sync-to-both-lines.sh          # 同步 HEAD 到两条线并推送
    ./scripts/sync-to-both-lines.sh <sha>    # 指定 commit
@@ -92,7 +106,7 @@ git push origin v2026.10.21-mainline
    它会切分支 → cherry-pick → 推送 → 跑同步检查 → 打印最终状态。
    **不会** `reset --hard`：本地与远端分叉时直接停下并打印两个 sha，
    把"要不要丢东西"的决定权留给人。
-3. **手动核对**
+4. **手动核对**
    ```bash
    git ls-remote origin refs/heads/main refs/heads/gxlimg-full-mainline-uboot
    python3 scripts/check-branch-sync.py --repo . \
