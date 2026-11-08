@@ -408,9 +408,12 @@
 };
 
 /* ==================================================================
- * 以太网 —— RGMII 千兆 + RTL8211F
+ * 以太网 —— RGMII 千兆 + YT8531H-CA
  * ==================================================================
- * PHY : U23 = RTL8211F，pin-to-pin 兼容 YT8531H-CA
+ * PHY : U23 = YT8531H-CA（裕太微 Motorcomm，网表实测）
+ *       Pin-to-Pin 兼容 RTL8211F，两者可互换；本板实际贴装 YT8531H-CA
+ *       驱动：mainline CONFIG_MOTORCOMM_PHY（drivers/net/phy/motorcomm.c）
+ *       PHY_ID_YT8531 = 0x4f51e91b，上机以 dmesg 实读为准
  * 地址: strap 实测 = 3'b001 = 1（R78→A_3V3, R79/R80→GND）
  *       ⚠ VIM3 用 reg=<0>，本板必须改为 1
  *
@@ -443,7 +446,7 @@
 
 &ext_mdio {
 	external_phy: ethernet-phy@1 {   /* ⚠ 非 VIM3 的 @0 */
-		/* Realtek RTL8211F (0x001cc916) */
+		/* 裕太微 YT8531H-CA；MDIO 读 ID 自动匹配 motorcomm 驱动 */
 		reg = <1>;
 		max-speed = <1000>;
 

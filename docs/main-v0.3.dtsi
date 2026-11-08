@@ -31,9 +31,12 @@
 };
 
 /* ===========================================================================
- * 1. 以太网 —— RGMII 千兆 + RTL8211F（pin-to-pin 兼容 YT8531H-CA）
+ * 1. 以太网 —— RGMII 千兆 + YT8531H-CA（pin-to-pin 兼容 RTL8211F）
+ * ⚠ 本文件是历史草稿：phy-mode="rgmii-id" 结论已作废，
+ *   现行 dt/meson-halo-a311d.dts 用 "rgmii" + MAC 侧延时。
  * ===========================================================================
- * PHY : U23 = RTL8211F，QFN40
+ * PHY : U23 = YT8531H-CA（裕太微 Motorcomm，网表实测），QFN40
+ *       驱动 CONFIG_MOTORCOMM_PHY，PHY_ID_YT8531 = 0x4f51e91b
  * 接法: GMAC0 ← RGMII → U23 → RJ45
  * 复位: RGMII_RST#(CN3-2) ──R50(0Ω)──→ PHY0_RSTN(U23-12)，底板不另配 GPIO
  * 模式: RGMII 与 RMII 互斥(PRG_ETH_REG1[0], 仅复位采样) → 本板锁 RGMII
@@ -68,7 +71,7 @@
  *   - ❌ 禁用 "rgmii"：驱动会把 PHY 两个延时都关掉 → 时序崩溃、千兆链路起不来
  *   -❌ 禁用 "rgmii-txid"/"rgmii-rxid"：只开单向，RX 或 TX 缺 2ns
  *
- *   与 Khadas VIM3（同A311D + RTL8211F）mainline DTS 配置一致。
+ *   （VIM3 参考板用 RTL8211F；本板 U23 是 YT8531H-CA，pin-to-pin 替代料。）
  */
 &gmac0 {
     status = "okay";

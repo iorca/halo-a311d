@@ -463,19 +463,34 @@ Amlogic PWM 控制器**两两配对**（AB / CD / EF），每个控制器 2 个�
 
 ## 以太网
 
-RTL8211F，`phy-mode = "rgmii"`，`reg = <1>`：
+PHY = **U23 = YT8531H-CA**（裕太微 Motorcomm，网表实测；Pin-to-Pin 兼容 RTL8211F）。
+RGMII 千兆，`reg = <1>`（strap 实测），`phy-mode = "rgmii"`，延时由 MAC 侧提供：
 
 ```dts
 &ethmac {
-    phy-mode = "rgmii";
-    pinctrl-0 = <&ethmac_rgmii_pins>;
+    pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
     pinctrl-names = "default";
-    phy-handle = <&phy_0>;
-    tx_delay_ns = <2>;
-    rx_internal_delay_ps = <2000>;
+    status = "okay";
+    phy-mode = "rgmii";
+    phy-handle = <&external_phy>;
+    amlogic,tx-delay-ns = <2>;
+    rx-internal-delay-ps = <2000>;
 };
-&phy_0 { reg = <1>; };
+
+&ext_mdio {
+    external_phy: ethernet-phy@1 {
+        reg = <1>;
+        max-speed = <1000>;
+    };
+};
 ```
+
+驱动：mainline `CONFIG_MOTORCOMM_PHY`（`drivers/net/phy/motorcomm.c`），
+MDIO 按 `PHY_ID_YT8531 = 0x4f51e91b` 精确匹配，无需 `compatible`。
+`dmesg` 应显示 `YT8531 Gigabit Ethernet`。
+
+⚠ 不用 `phy-mode = "rgmii-id"`：PHY strap 的 TXDLY 已开，
+再叠加 MAC 延时会造成 4ns 双倍偏移。
 
 ---
 

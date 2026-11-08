@@ -141,7 +141,7 @@ LED1/LED2/LED3 无 GPIO 控制 → DTS 不写对应 gpio-leds。
 > 由 strap 电阻决定：`RGMII_RXD0/RXDLY` 上拉 → RX 延时开；`RGMII_RXD1/TXDLY` 下拉 → TX 延时关。
 > 本板 R62~R65 + R75/R77/R79/R80 已配这些 strap（见上表）。
 > **mainline 已内置 `CONFIG_MOTORCOMM_PHY` 驱动**，无需移植。
-> 验证：`dmesg` 应打印 `driver [Motorcomm YT8531]`；若显示 RTL8211F 说明 PHY ID 读取异常。
+> 验证：`dmesg` 应打印 `YT8531 Gigabit Ethernet`；若显示 RTL8211F 说明贴的是替代料或 PHY ID 读取异常。
 
 **PHY 复位（R50 = 0Ω 直通，实测确认为同一路）**
 ```
@@ -315,7 +315,9 @@ RGMII 规范要求 **2ns** 的 TX 时钟偏移，可在 MAC 侧或 PHY 侧提供
 
 - **本板建议 `rgmii-id`**：YT8531 常需 2ns 偏移；由 strap 电阻（R62~R65、R75/R77/R79/R80）决定实际生效位置。
 - 驱动：`mainline` 已内置 `CONFIG_MOTORCOMM_PHY`。
-- 验证：`dmesg` 应打印 `driver [Motorcomm YT8531]`；PHY ID 应为 `0x0000011a`(Motorcomm)。
+- 验证：`dmesg` 应打印 `YT8531 Gigabit Ethernet`；
+  `PHY_ID_YT8531 = 0x4f51e91b`（`motorcomm.c`）。
+  ⚠ `0x0000011a` 是 **YT8521** 的 ID，不是 YT8531 —— 旧文档写错了。
 
 **FPC5 座（5001-FPC0520-08R1-00-B）**
 

@@ -136,13 +136,15 @@
 | 项 | 本板定义 |
 |---|---|
 | MAC | `&gmac0`（RGMII，与 RMII 互斥，复位时由 `PRG_ETH_REG1[0]`锁定）|
-| PHY | U23 = **RTL8211F**，`reg = <1>`（strap R78→A_3V3 / R79,R80→GND）|
+| PHY | U23 = **YT8531H-CA**，`reg = <1>`（strap R78→A_3V3 / R79,R80→GND）|
 | **phy-mode** | **`"rgmii-id"`**（PCB 等长散布仅~1ps，2ns 必须由 PHY 内部延迟线提供）|
 | 复位 | `RGMII_RST#`(CN3-2) ─R50(0Ω)─→ PHY0_RSTN(U23-12)，核心板拉低即复位 |
-| 驱动 | mainline `realtek.c` 会在 `rgmii-id` 下**软件强制打开 TX+RX 双延时** |
+| 驱动 | mainline `motorcomm.c`（`CONFIG_MOTORCOMM_PHY`），MDIO 按 `0x4f51e91b` 匹配 |
 
-> ⚠ `rgmii-id` 依赖 `drivers/net/phy/realtek.c`。**aml-4.9 厂商内核里这个驱动可能没有 RTL8211F 的 RX 延时处理**（该功能 2019 年才进 mainline）。
-> → **必须实测验证**。若厂商驱动不支持，用 `mii-tool` 手动写 PHY 寄存器 `0xd08/0x11`。
+> ⚠ 本节 `rgmii-id` 结论是**旧版历史内容，已作废**。
+> 现行 dts 用 `phy-mode="rgmii"` + MAC 侧 `amlogic,tx-delay-ns=2` + `rx-internal-delay-ps=2000`
+> （PHY strap 的 TXDLY 已开，再叠 `rgmii-id` 会成 4ns 双倍偏移）。
+> 厂商内核里 `motorcomm.c` 是否存在也需实测确认。
 
 ### 2.5 温湿度 SHT40（🔴 新增一路）
 
@@ -213,7 +215,7 @@
 | **1** | **U31(SL6341D) 在不在用？** | 决定 GPIOA_3 能否给屏 RST（厂商当 hub_rst 用）|
 | **2** | **SPI_B SCLK 能否换脚？** | GPIOH_6 被厂商当 SPI cs + USB vbus |
 | **3** | **喇叭/spk_on(GPIOA_4) 要不要？** | 决定该脚能否给屏 RS |
-| **4** | **aml-4.9 的 realtek.c 是否支持 `rgmii-id` 双延时？** | 决定以太网能否工作 |
+| **4** | **厂商内核（aml-4.9）是否内置 `motorcomm.c`（YT8531H-CA 驱动）？** | 决定以太网能否工作；现行方案为 `rgmii` + MAC 侧延时 |
 | **5** | **音频保留哪些？** | `pdm_codec`/`dummy_codec`/`eqdrc` 可否关闭 |
 
 ---

@@ -26,7 +26,7 @@
 
 | 外设 | 本板引脚 | 风险 | 处理 |
 |------|---------|------|------|
-| **以太网 PHY** | U23 = **RTL8211F**，`reg=<1>`，`phy-mode="rgmii"` | 厂家 BSP 可能用 YT8531H 或不同地址 | 核对 PHY 地址 + phy-mode |
+| **以太网 PHY** | U23 = **YT8531H-CA**，`reg=<1>`，`phy-mode="rgmii"` | 厂家 BSP 可能用 RTL8211F 或不同地址 | 核对 PHY 地址 + phy-mode |
 | **SPI_B** | CS=**GPIOH_7**、SCLK=**GPIOH_6**、MOSI=GPIOH_4、MISO=GPIOH_5 | 厂家 BSP 很可能用另一组脚 | **覆盖 `&spi_B` 的 cs-gpios + pinctrl** |
 | **IR** | **GPIOAO_5** | 厂家可能用 GPIOX_* 或别的 AO 脚 | **覆盖 `&ir` 的 gpios** |
 | **运行灯 LED4** | **GPIOAO_10** | 厂家板可能无此灯 | **新增/覆盖 `&leds` 节点** |
@@ -42,7 +42,7 @@
 | 项 | 本板 | 核对方式 |
 |----|------|---------|
 | **YT8531H PHY 地址** | **1**（`3'b001`） | strap 实测：R78→A_3V3 / R79,R80→GND |
-| **RTL8211F PHY 地址** | 同上（pin-to-pin，地址定义一致） | `dmesg` 应显示 `driver [RTL8211F]`，phy_id **0x001cc916** |
+| **YT8531H-CA PHY 地址** | **1**（`3'b001`） | `dmesg` 应显示 `YT8531 Gigabit Ethernet`，`PHY_ID_YT8531 = 0x4f51e91b` |
 | **RGMII 延时** | **PCB 等长，2ns 全靠 PHY 内部延迟线** | 实测：TX 组散布 6.5mil(≈1ps)、RX 组 7.3mil(≈1ps)，clock-data 偏移仅 0.14ps vs 需求 2000ps |
 | **phy-mode** | **`rgmii-id`** | 驱动用软件寄存器强制开 TX+RX 双延时；**禁用 `rgmii`（会关掉延时）** |
 | ✅ 无需改硬件 | strap 状态无关 | `rgmii-id` 下驱动覆盖 strap，RXDLY 上下拉均不影响 |
@@ -109,8 +109,8 @@
 ```sh
 # 1. 以太网 PHY 是否识别
 dmesg | grep -iE "rtl8211f|yt8531|motorcomm|ethernet-phy|stmmac"
-#   本板用 RTL8211F：期望 driver [RTL8211F]，phy_id 0x001cc916
-#   （若换成 YT8531H 则为 0x0000011a）
+#   本板用 YT8531H-CA：期望 YT8531 Gigabit Ethernet，PHY_ID_YT8531 = 0x4f51e91b
+#   （pin-to-pin 替代料 RTL8211F 的 ID 是 0x001cc916；0x0000011a 是 YT8521，别搞混）
 #   ⚠ PHY 地址应为 1，若 dmesg 报 address 0 → 查 strap
 
 # 2. PHY 地址是否正确
@@ -192,4 +192,5 @@ ifconfig wlan0                     # 或 nmcli dev
 6. **R110=100Ω 时基极电流约 26mA**（(3.3-0.7)/100）。对GPIO 偏大（多数 SoC 额定 8mA，部分 26mA）。
    若实测 GPIO 驱动能力不足或边沿畸变，可考虑**加大到 220Ω~470Ω**（LED 电流仅 ~0.3mA，β 要求不高）。
 7. **RGMII 延时不要试图用 PCB 走线补偿**：实测两组均等长（散布≈1ps），而 2ns 需约13000mil 走线。
-   正确做法是 `phy-mode="rgmii-id"`，由 RTL8211F 内部延迟线提供 2ns。
+   ⚠ 本板最终方案是 `phy-mode="rgmii"` + MAC 侧延时（`amlogic,tx-delay-ns=2` /
+   `rx-internal-delay-ps=2000`），见 dts 以太网段注释；此处历史结论已作废。
