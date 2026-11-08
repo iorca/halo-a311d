@@ -486,8 +486,15 @@ RGMII 千兆，`reg = <1>`（strap 实测），`phy-mode = "rgmii"`，延时由 
 ```
 
 驱动：mainline `CONFIG_MOTORCOMM_PHY`（`drivers/net/phy/motorcomm.c`），
-MDIO 按 `PHY_ID_YT8531 = 0x4f51e91b` 精确匹配，无需 `compatible`。
+MDIO 按 `PHY_ID_YT8531 = 0x4f51e91b` 用 `PHY_ID_MATCH_EXACT` 匹配，无需 `compatible`。
 `dmesg` 应显示 `YT8531 Gigabit Ethernet`。
+
+armbian `config/kernel/linux-meson64-current.config:926` 是 `CONFIG_MOTORCOMM_PHY=m`
+（edge 配置 `:896` 同为 `=m`）。**模块形式够用**：phylib 在 MDIO 枚举到 PHY 时
+按 ID 自动 `request_module()` 加载 `motorcomm.ko`，不需要 `modules-load.d`。
+前提是 `linux-image` 包里的模块进了 rootfs（armbian 默认全装）。
+⚠ 若裁剪过 rootfs 或用了自定义 initramfs，需确认 `motorcomm.ko` 在，
+否则 PHY 会退化成 Generic PHY —— 链路可能起但延时/特性不对。
 
 ⚠ 不用 `phy-mode = "rgmii-id"`：PHY strap 的 TXDLY 已开，
 再叠加 MAC 延时会造成 4ns 双倍偏移。
