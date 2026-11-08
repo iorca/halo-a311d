@@ -56,8 +56,13 @@ git push origin v2026.10.21-mainline
 
 | 分支 | u-boot 来源 | 说明 |
 |---|---|---|
-| `main` | LibreELEC khadas-vim3 FIP（厂商原版 u-boot） | 稳定路线 |
-| `gxlimg-full-mainline-uboot` | `fip-blob/` 里的厂商完整 FIP + **gxlimg 重打包主线 u-boot** | 主线 u-boot 路线 |
+| `main` | LibreELEC khadas-vim3 FIP 散件 + **主线 u-boot v2026.04**（`uboot_g12_postprocess`）| 稳定路线 |
+| `gxlimg-full-mainline-uboot` | `fip-blob/` 本板厂商完整 FIP + **gxlimg 重打包主线 u-boot** | 主线 u-boot 路线 |
+
+> 两条线的 `bl33` 都是 armbian 编出的主线 u-boot v2026.04，
+> 差别只在 FIP 的其余组件来源（LibreELEC VIM3 散件 vs 本板厂商 blob）。
+> 证据：`meson64_common.inc:127` 的 `mv u-boot.bin bl33.bin`；
+> `extensions/gxlimg.sh` 的 `gxlimg_repack_fip_with_new_uboot()`。
 
 ### 哪些文件两条线必须一致
 
@@ -604,11 +609,134 @@ KERNELSOURCE 指的 kernel.org stable/linux.git 同源）。
 
 ---
 
+## 刷写与启动顺序（真机实测，必读）
+
+板上有两个存储：**底板 TF 卡座 CARD1**（`&sd_emmc_b`，4bit）和**核心板 eMMC**
+（`&sd_emmc_c`，8bit），两者都已 `status = "okay"`。但**能识别 ≠ 能启动**。
+
+刷写前先确认设备名，别刷错盘：
+```bash
+lsblk
+dmesg | grep -i mmc
+```
+
+```bash
+# 刷到 TF 卡座（CARD1）
+dd if=Armbian_*.img of=/dev/sdX bs=4M conv=fsync status=progress
+# 刷到 eMMC
+dd if=Armbian_*.img of=/dev/mmcblkX bs=4M conv=fsync status=progress
+```
+
+### ⚠ G12B 的 BootROM 优先从 eMMC 启动
+
+U-Boot 官方 `board/amlogic/boot-flow.html`：G12*/SM1 默认 POC=1/1/1 的顺序是
+**NAND/eMMC → SD → USB**。核心板 eMMC 里有完好的厂商 FIP，BootROM 在 eMMC 这级
+就成功，**永远不会 fallback 到 SD**。同 SoC 的 Khadas VIM3 也是这个行为。
+
+判断起的是谁，看串口首行和后续：
+```
+POC:F;RCY:0;EMMC:0;READ:0          ← BootROM 命中 eMMC
+eMMC boot @ 0
+Load FIP HDR from eMMC ... part: 0
+U-Boot 2015.01 (Sep 16 2022)        ← 厂商 Android u-boot
+Linux version 4.9.113 (rpdzkj@90)   ← 厂商 Android 内核
+root=/dev/mmcblk0p18                ← 根挂在 eMMC 的 system 分区
+```
+只要看到这几行，**镜像根本没被读**，跟镜像好坏、烧录对错都无关。
+（若同时出现 `mmcblk1: sd:... / mmcblk1: p1`，说明 TF 卡烧录成功、硬件正常。）
+
+### 三条已实测无效的路
+
+| 做法 | 结果 | 原因 |
+|---|---|---|
+| 直接插 TF 卡上电 | 起厂商 Android | BootROM 优先 eMMC，不 fallback 到 SD |
+| 按住 SW3(EMMC_KEY) 上电 | `POC:F→D`、多出 `USB:0`，仍 `EMMC:0;READ:0` | 拉低 BOOT_5 只是把 **USB** 提到首位（强制 USB 烧录模式），不是切 SD |
+| 读卡器 + TF 卡插 OTG 口 | 仍起厂商 Android | BootROM 的 USB 启动是 **USB Device 专有协议**（`1b8e:c003`，需 PC 主动推固件），不是 USB Host 读 Mass Storage |
+
+**USB_Burning_Tool 报「解析烧录固件失败」是格式问题，不是镜像坏**：该工具只吃
+Amlogic 打包固件（带 aml 分区描述/burn 配置），我们的 `.img` 是标准 MBR 磁盘镜像。
+但工具能列出设备（`HUB2-4`）→ **USB Device 模式是通的**，可走 pyamlboot。
+
+### ✅ 推荐：只把主线 U-Boot 的 FIP 刷进 eMMC（不重打包系统镜像）
+
+**不要跟 BootROM 的启动优先级较劲。** BootROM 本来就从 eMMC 起，
+把 eMMC 里的厂商 FIP 换成**主线 U-Boot FIP** 即可：主线 U-Boot 自带以太网、
+USB、eMMC 驱动，起来后自己会按 `boot_targets` 扫描 eMMC / USB / 网口找
+`boot.scr`、extlinux、TFTP → TF 卡、U 盘、网络启动全都可用。
+
+Amlogic USB Burning Tool 的 `.img` 是**专有固件格式，不是 disk image**，
+所以直接喂我们的 `Armbian_*.img` 会报「解析烧录固件失败」。
+把整套系统镜像重打包成线刷包不划算；只打包 FIP 就够：
+
+```bash
+# 1) 从 Release 的 linux-u-boot-*.deb 取出 u-boot.bin —— 它就是完整 FIP
+dpkg-deb -x linux-u-boot-halo-a311d-current_*.deb uboot-deb
+#    实际路径在 /usr/lib/linux-u-boot-halo-a311d-current_*/u-boot.bin
+
+# 2) 打成最小线刷包（只含 FIP/DDR.USB，不含系统分区）
+#    工具任选：7Ji/ampack（ampack pack <dir> <out.img>，自动识别分区文件）、
+#             hzyitc/AmlImg、Amlogic 闭源 aml_image_v2_packer
+#    格式可解包参考仓库 retro98boy/amlogic-devices 的 Release：
+#            fip-with-mainline-uboot.bin / fip-with-mainline-uboot.burn.img
+```
+
+参考：[retro98boy/amlogic-devices / cainiao-cniot-core](https://github.com/retro98boy/amlogic-devices/blob/main/devices/cainiao-cniot-core/README.md)
+（同 A311D、无 SD 卡槽、同款 BootROM 行为）。
+
+**也可用 dd 直接写**（厂商 Android 里已有 `console:/ $` shell，拿到 root 即可）：
+```bash
+dd if=fip-with-mainline-uboot.bin of=/dev/mmcblkX bs=512 seek=1
+# 建议同时写 boot area：A311D 在 user area 找不到 FIP 后会查 boot0/boot1
+echo 0 > /sys/block/mmcblkXboot0/force_ro
+echo 0 > /sys/block/mmcblkXboot1/force_ro
+dd if=fip-with-mainline-uboot.bin of=/dev/mmcblkXboot0 bs=512 seek=1
+dd if=fip-with-mainline-uboot.bin of=/dev/mmcblkXboot1 bs=512 seek=1
+```
+⚠ 会顶掉厂商 Android 的 bootloader，**不可逆**，恢复需重刷厂商固件。
+/dev/mmcblkX 先用 `lsblk` 核实，别写错盘。
+
+仓库里现成的 FIP 原料：`fip-blob/halo-a311d/fip-vendor-mainline-uboot.bin`
+（1,522,032 B，`@AML` 头，`gxlimg -e` 实测可完整解包）。
+
+### 备选：让 BootROM 走 SD —— 清 eMMC boot 区
+
+⚠ **不可逆**：厂商 Android 将再也起不来，恢复需 USB Burning Tool 重刷厂商固件。
+数据分区不删，但没 bootloader 也用不了。动手前确认厂商系统还要不要。
+
+把卡插回**板载 TF 卡座 CARD1**（不是 OTG），在厂商 U-Boot 提示符
+（`Hit Enter or space or Ctrl+C key to stop autoboot` 时打断）执行：
+```
+mmc list                          # 先核实 eMMC 编号（日志 MMC(1)=eMMC / SDIO Port B=0, C=1）
+mmc dev 1 1 ; mmc erase 0 0x400   # boot0
+mmc dev 1 2 ; mmc erase 0 0x400   # boot1
+mmc dev 1 0 ; mmc erase 0 0x10000 # 主分区头
+reset
+```
+依据是 Khadas VIM3 官方 Nerves 文档的同款命令（同 A311D、同厂商 U-Boot 2015）。
+**本板 mmc 编号未实测**，先 `mmc list` 确认再擦。
+
+### 备选：USB 启动（不动 eMMC）
+
+按住 SW3 上电使 POC 走 USB 首位，PC 端用 `pyamlboot` 的 `boot-g12.py`
+（postmarketOS wiki 明确列 A311D 支持）或 Amlogic 的工具把 FIP 推进内存执行。
+零风险，但要装工具、配 USB 线，且需要另做准备可用于 USB 加载的 FIP。
+
+### FIP 位置（说明镜像本身没问题）
+
+armbian `config/sources/families/include/meson64_common.inc:232`：
+```bash
+dd if=u-boot.bin of=$DEV bs=1 count=442 conv=fsync
+dd if=u-boot.bin of=$DEV bs=512 skip=1 seek=1 conv=fsync
+```
+FIP 落在 **sector 1（512B 偏移）**，正是 U-Boot 文档要求的 SD/eMMC 位置。
+
+---
+
 ## 已知限制
 
 | 项 | 说明 |
 |---|---|
-| **真机未验证** | 全部只在 CI 编过，**没在板子上启动过**（PCB 未生产）|
+| **真机未跑通 Armbian** | 已上真机验证：镜像能烧进 TF 卡、Linux 能识别卡，但 **BootROM 仍从 eMMC 起厂商 Android**。原因见下节「刷写与启动顺序」|
 | `gpio read` 编号 | 51 是按「periphs 先探测」推的。上机若「贴了上拉却读到 LOW」，改 `althea_sel_num=66` 即可，不需重编 |
 | 音频 | **完全不使用音频功能**。DTS 里 TDM/PDM/声卡相关节点（`&tdmif_a`、`&tdmin_a`、`&tdmout_a`、`&toddr_a~c` 等）全部不使能 |
 | **散热风扇不转** | PWM 通道已在 DTS 里配好（`&pwm_AO_ab` 0(A) / GPIOAO_11），但**驱动电路（MOSFET + 续流二极管）layout 尚未完成** —— 网表上 `PWM_FAN` 只连一颗 1N5819WT 二极管，无风扇连接器、无 MOSFET。`/sys/class/pwm/` 会有该通道但无负载 |
