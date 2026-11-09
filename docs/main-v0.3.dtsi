@@ -33,7 +33,8 @@
 /* ===========================================================================
  * 1. 以太网 —— RGMII 千兆 + YT8531H-CA（pin-to-pin 兼容 RTL8211F）
  * ⚠ 本文件是历史草稿：phy-mode="rgmii-id" 结论已作废，
- *   现行 dt/meson-halo-a311d.dts 用 "rgmii" + MAC 侧延时。
+ *   现行 dt/meson-halo-a311d.dts 用 "rgmii" + amlogic,tx-delay-ns=2，
+ *   且**不写 rx-internal-delay-ps**（2026-11-09 真机实测：1Gbps 跑通）。
  * ===========================================================================
  * PHY : U23 = YT8531H-CA（裕太微 Motorcomm，网表实测），QFN40
  *       驱动 CONFIG_MOTORCOMM_PHY，PHY_ID_YT8531 = 0x4f51e91b

@@ -417,14 +417,30 @@
  * 地址: strap 实测 = 3'b001 = 1（R78→A_3V3, R79/R80→GND）
  *       ⚠ VIM3 用 reg=<0>，本板必须改为 1
  *
- * 延时方案（抄 VIM3 + 补 RX）:
- *   PHY strap: TXDLY=1(加2ns), RXDLY=0(不加)
- *   PCB 等长实测: TX散布 6.5mil(≈1ps), RX 散布 7.3mil(≈1ps)
- *   → PCB 几乎不提供 clock-data 偏移
- *   → TX 由 MAC 加（amlogic,tx-delay-ns=2，VIM3 原样）
- *   → RX 由 MAC 加（rx-internal-delay-ps=2000，范围 0..3000ps/200ps 步进）
+ * ⚠⚠⚠ RGMII 延时 —— **两端都不加 delay**（2026-11-09 真机实测，1Gbps 跑通）
  *
- * ⚠ 禁用 phy-mode="rgmii-id"：PHY strap TXDLY 已开，会与 MAC 叠加成 4ns
+ *   实测（R70 已摘除、1Gbps、ping 8.8.8.8 通、crc_error=0）：
+ *     MAC rx-internal-delay-ps =    0 → ✅ framecount↑ / crc=0 / DHCP 拿到地址 / 外网通
+ *                             2000 → ❌ 帧能进但 100% CRC 错（RX packets=0）
+ *                             3000 → ❌ 连帧都同步不了（framecount=0）
+ *   → **绝不要写 rx-internal-delay-ps**（原先的 <2000> 是罪魁祸首）
+ *
+ *   为什么：A311D = amlogic,meson-g12a-dwmac → has_prg_eth1_rgmii_rx_delay=true
+ *   → 该属性被写进 PRG_ETH1 的 CFG_RXCLK_DLY（0..3000ps、200ps 步进），
+ *     给**输入 RX_CLK** 加延迟 = 把采样点往后推 → 采样点跑出窗口。
+ *   见 drivers/net/ethernet/stmicro/stmmac/dwmac-meson8b.c
+ *       meson8b_init_rgmii_delays()
+ *
+ *   PHY 侧 strap（底板 R62=RXDLY / R70=TXDLY）**两颗都不要贴**：
+ *   - R70(TXDLY) 会给 MAC→PHY 方向再加 2ns，与 amlogic,tx-delay-ns 重复
+ *   - R62(RXDLY) 同理会破坏 PHY→MAC 方向
+ *   且 motorcomm.c 的 ytphy_rgmii_clk_delay_config() 在 phy-mode="rgmii" 下
+ *   会把 PHY 0xA003 的 RX delay / GE TX delay 字段**清零**（覆盖 strap）。
+ *
+ * ⚠⚠ 也**不要**用 phy-mode="rgmii-id" / "rgmii-rxid"：
+ *   rgmii-rxid 让 motorcomm 给 PHY 加 RX delay，但 Amlogic 平台驱动在
+ *   同一 switch 的另一分支把 MAC 侧 cfg_rxclk_dly 清零 → 两个驱动互斥，
+ *   软件没法同时给两侧加。实测 rgmii-rxid + PHY 1950ps → framecount=0。
  *
  * PHY 中断（RGMII_INT）:
  *   路径（底板网表实测）: SoC GPIOZ_14 → CN3-4 → R59(0Ω) → U23.31 (PHY 的 INTR)
@@ -433,6 +449,7 @@
  *   中断号: IRQID_GPIOZ_14 = 26
  *           (dt-bindings/interrupt-controller/amlogic,meson-g12a-gpio-intc.h)
  *   GPIOZ_14 的芯片复用功能是 eth_link_led；作普通 GPIO 输入不需要 pinctrl mux
+ *   ⚠ 实测驱动报 irq=POLL —— 该中断没生效，phylib 退化为轮询（非阻塞，待查）
  */
 &ethmac {
 	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
@@ -441,7 +458,6 @@
 	phy-mode = "rgmii";
 	phy-handle = <&external_phy>;
 	amlogic,tx-delay-ns = <2>;
-	rx-internal-delay-ps = <2000>;
 };
 
 &ext_mdio {

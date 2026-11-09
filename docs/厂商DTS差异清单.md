@@ -133,8 +133,12 @@
 | 驱动 | mainline `motorcomm.c`（`CONFIG_MOTORCOMM_PHY`），MDIO 按 `0x4f51e91b` 匹配 |
 
 > ⚠ 本节 `rgmii-id` 结论是**旧版历史内容，已作废**。
-> 现行 dts 用 `phy-mode="rgmii"` + MAC 侧 `amlogic,tx-delay-ns=2` + `rx-internal-delay-ps=2000`
-> （PHY strap 的 TXDLY 已开，再叠 `rgmii-id` 会成 4ns 双倍偏移）。
+> 现行 dts 用 `phy-mode="rgmii"` + `amlogic,tx-delay-ns=2`，**不写 `rx-internal-delay-ps`**，
+> 且底板 **R62(RXDLY) / R70(TXDLY) 两颗都不贴**。
+> 依据（2026-11-09 真机实测）：`rx-internal-delay-ps` = 0 时 1Gbps 跑通
+> （crc_error=0、DHCP 拿到地址、ping 8.8.8.8 通）；= 2000 时 100% CRC 错；
+> = 3000 时连帧都同步不了；`rgmii-rxid` + PHY 1950ps → framecount=0
+> （与 motorcomm 驱动互斥，详见 README「以太网」节）。
 > 厂商内核里 `motorcomm.c` 是否存在也需实测确认。
 
 ### 2.5 温湿度 SHT40（🔴 新增两路）
