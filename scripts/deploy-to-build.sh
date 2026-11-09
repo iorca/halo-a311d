@@ -184,6 +184,41 @@ if [ -d "$SRC_PATCH" ]; then
     done
 fi
 
+# -----------------------------------------------------------------------------
+# 4c. 本仓库自己的内核 patch（真 patch，非 0 字节）
+# -----------------------------------------------------------------------------
+# ⚠⚠ 为什么不能放进 patch/kernel/archive/meson64-*/：
+#
+#   scripts/check-opp-patch-disable.py 的第 2 条规则要求
+#   **我们仓库 meson64-*/*.patch 里的每个文件都必须是 0 字节**
+#   （0 字节 = "禁用 armbian 同名 patch"；非 0 字节 = 被当成真 patch 应用，
+#   会让那个禁用机制失效）。
+#   → 真 patch 必须放在**另一个目录**，本目录专用于禁用文件。
+#
+# 落地位置：与 dt/ 同级，即 userpatches/kernel/archive/meson64-<KMM>/
+#   （PATCH_TYPE=kernel，PATCH_DIRS_TO_APPLY=KERNELPATCHDIR=archive/meson64-<KMM>）
+#   → armbian 的 patching.py 会把这里的 .patch 收进来并真正应用
+#     （patching.py:166-190：user 层目录排在 core 层之后，
+#       同名文件覆盖 core 层那份；非空文件进 NORMAL_PATCH_FILES）。
+#
+# ⚠⚠ 按内核版本分目录 —— 上游 v7.3 已经自带 YT8531 的 LED 支持
+#   （commit a8abe8e210c1 "net: phy: motorcomm: Add support for PHY LEDs
+#   on YT8531"，2025-10-26 进主线）。
+#   → 在 7.x 上再打同一个 patch 会因上下文已变而 apply 失败 → 内核构建直接挂。
+#   → 所以目录名带 KMM，只在对应版本的内核树上才安装。
+# -----------------------------------------------------------------------------
+SRC_APPLY="$REPO_ROOT/patch/apply/meson64-${KMM}"
+if [ -d "$SRC_APPLY" ]; then
+    for p in "$SRC_APPLY"/*.patch; do
+        [ -e "$p" ] || continue
+        mkdir -p "$PATCH_DIR"
+        install -m 0644 "$p" "$PATCH_DIR/"
+        echo "✓ 内核 patch: $(basename "$p")  ($(wc -c < "$p") 字节) → $PATCH_DIR"
+    done
+else
+    echo "  (patch/apply/meson64-${KMM}/ 不存在 —— 该内核版本无需本仓库的 patch)"
+fi
+
 
 # -----------------------------------------------------------------------------
 # 5. U-Boot 模式选择脚本（冷切换）

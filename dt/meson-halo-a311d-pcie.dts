@@ -456,6 +456,46 @@
 		 */
 		interrupt-parent = <&gpio_intc>;
 		interrupts = <IRQID_GPIOZ_14 IRQ_TYPE_EDGE_FALLING>;
+
+		/*
+		 * PHY LED 输出（YT8531 EXT_0xA00C/0xA00D/0xA00E）
+		 *
+		 * ⚠ 本板的 LED 引脚与 CFG_* 复用：
+		 *   .32 = LED0/CFG_EXT  → 只接 R81(4.7k) 到 GND，**没接灯**
+		 *   .33 = LED1/CFG_LDO0 → R67(510Ω) → RJ1.11 → **绿灯**
+		 *   .34 = LED2/CFG_LDO1 → R66(510Ω) → RJ1.14 → **黄灯**
+		 *   strap 只在上电瞬间采样，之后引脚转为 LED 输出，
+		 *   行为完全由 LEDx_CFG 寄存器决定。
+		 *
+		 * ⚠ 出厂默认（datasheet Table 7）是「一盏灯管一档速率」：
+		 *   LED0 = 10M link，LED1 = 100M link，LED2 = 1000M link。
+		 *   → 本板只接了 LED1/LED2，1G 链路时点亮的是**黄灯**，
+		 *     绿灯（100M 灯）全程不亮 —— 这不是硬件故障，是出厂语义。
+		 *
+		 * 下面改成常规 RJ45 语义：
+		 *   绿灯 = 链路通（任意速率）常亮 + 收发活动闪烁
+		 *   黄灯 = 1000M 链路常亮 + 收发活动闪烁
+		 *
+		 * 位定义（datasheet Table 24/25/26，同 LED0 语义）:
+		 *   bit13 Led_act_blk_ind  有流量就闪（不管之前亮不亮）
+		 *   bit12 Led_fdx_on_en    全双工时常亮
+		 *   bit11 Led_hdx_on_en    半双工时常亮
+		 *   bit10 Led_txact_blk_en 发送活动闪烁
+		 *   bit9  Led_rxact_blk_en 接收活动闪烁
+		 *   bit6  Led_gt_on_en     1000Mbps 时常亮
+		 *   bit5  Led_ht_on_en     100Mbps 时常亮
+		 *   bit4  Led_bt_on_en     10Mbps 时常亮
+		 *
+		 * 绿灯 0x2670 = bit13|bit10|bit9|bit6|bit5|bit4
+		 * 黄灯 0x2640 = bit13|bit10|bit9|bit6
+		 *
+		 * ⚠ 需要内核侧的 motorcomm YT8531 LED 支持
+		 *   （patch/apply/meson64-6.18/，
+		 *    内核 6.18 的 motorcomm.c 尚无 YT8531 的 led_hw_* 回调，
+		 *    7.3+ 上游已自带）。
+		 */
+		motorcomm,led1-config = <0x2670>;
+		motorcomm,led2-config = <0x2640>;
 	};
 };
 

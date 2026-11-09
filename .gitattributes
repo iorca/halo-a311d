@@ -27,6 +27,14 @@ fip/*.py      text eol=lf
 #   本地核对字节数/大小会得出错误结论。
 *.cmd    text eol=lf
 
+# 内核 patch 文件（patch/apply/meson64-*/ 下我们自己写的真 patch）
+# ⚠⚠ 必须显式指定 eol=lf：patch 文件的每一行都以字符 '+' / '-' / ' ' 开头，
+#   行尾多一个 \r 会让 `patch` 的上下文匹配失败 → 应用失败或产生 .rej。
+#   ⚠ 与 *.sh 同理：core.autocrlf=true 时工作区会变 CRLF，
+#   而 CI 在 Linux 检出拿到 LF —— 同一份 patch 字节数不同，
+#   本地验证通过、CI 里失败。
+*.patch  text eol=lf
+
 .gitattributes  text eol=lf
 .gitignore    text eol=lf
 
