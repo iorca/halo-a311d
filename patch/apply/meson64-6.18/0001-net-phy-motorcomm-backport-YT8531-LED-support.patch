@@ -1,0 +1,141 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Halo A311D BSP <bsp@halo-a311d.local>
+Date: Mon, 9 Nov 2026 17:00:00 +0800
+Subject: [PATCH] net: phy: motorcomm: backport YT8531 LED support
+
+The YT8531 LED output pins are multiplexed with the CFG_* straps
+(pin32 = LED0/CFG_EXT, pin33 = LED1/CFG_LDO0, pin34 = LED2/CFG_LDO1).
+The strap is only sampled at power-on, afterwards the pins are driven
+as LED outputs whose behaviour is fully controlled by the LEDx_CFG
+registers (EXT_0xA00C / 0xA00D / 0xA00E).
+
+The factory default maps LED0 to the 10Mbps link indicator, LED1 to the
+100Mbps link indicator and LED2 to the 1000Mbps link indicator, each
+blinking on TX/RX activity.  A board that wires only two of the three
+pins to a connector therefore ends up with the wrong LED lit for the
+negotiated speed: on this board LED1 drives the green connector LED
+and LED2 the yellow one, so a 1000Mbps link lights the yellow LED and
+leaves the green one dark.
+
+Two changes are needed:
+
+  1. Backport the LED callbacks for YT8531 from upstream commit
+     a8abe8e210c1 ("net: phy: motorcomm: Add support for PHY LEDs on
+     YT8531").  The LED registers on YT8531 are identical to YT8521,
+     so the existing helpers are reused as upstream does.
+
+  2. Add yt8531_led_config_init(), which programs the LEDx_CFG
+     registers from the optional "motorcomm,led<N>-config" device tree
+     properties.  The registers are written from config_init() because
+     of_phy_leds() runs during PHY probe, before the PHY is attached
+     to a network device, so the LED class netdev trigger cannot hand
+     the hardware over to the PHY at that point.
+
+The LEDx_CFG bits describe the wanted behaviour; the PHY evaluates the
+current link speed and the TX/RX activity itself, so no further
+software involvement is needed once the registers are programmed.
+
+Signed-off-by: Halo A311D BSP <bsp@halo-a311d.local>
+---
+ drivers/net/phy/motorcomm.c | 76 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 76 insertions(+), 0 deletions(-)
+diff --git a/drivers/net/phy/motorcomm.c b/drivers/net/phy/motorcomm.c
+--- a/drivers/net/phy/motorcomm.c
++++ b/drivers/net/phy/motorcomm.c
+@@ -1794,6 +1794,75 @@
+ 	return 0;
+ }
+ 
++/**
++ * yt8531_led_config_init() - apply the device tree LED configuration
++ * @phydev: pointer to the PHY device
++ *
++ * Reads the optional "motorcomm,led<N>-config" properties and writes the
++ * corresponding LEDx_CFG register.  A missing property leaves the factory
++ * default of that LED in place.
++ *
++ * The property value is the raw LEDx_CFG bit mask:
++ *   bit13  Led_act_blk_ind  blink on activity regardless of previous state
++ *   bit12  Led_fdx_on_en    solid on when link up and full duplex
++ *   bit11  Led_hdx_on_en    solid on when link up and half duplex
++ *   bit10  Led_txact_blk_en blink on transmit activity
++ *   bit9   Led_rxact_blk_en blink on receive activity
++ *   bit6   Led_gt_on_en     solid on when link up at 1000Mbps
++ *   bit5   Led_ht_on_en     solid on when link up at 100Mbps
++ *   bit4   Led_bt_on_en     solid on when link up at 10Mbps
++ *
++ * These bits describe the wanted behaviour; the PHY evaluates the current
++ * link speed and the TX/RX activity itself, so no further software
++ * involvement is needed once the registers are programmed.
++ *
++ * The LED output pins of the YT8531 are multiplexed with the CFG_*
++ * straps (pin32 = LED0/CFG_EXT, pin33 = LED1/CFG_LDO0,
++ * pin34 = LED2/CFG_LDO1).  The strap is only sampled at power-on, the
++ * pins are driven as LED outputs afterwards and their behaviour is fully
++ * controlled by the LEDx_CFG registers (EXT_0xA00C / 0xA00D / 0xA00E).
++ *
++ * The factory default maps LED0 to the 10Mbps link indicator, LED1 to the
++ * 100Mbps link indicator and LED2 to the 1000Mbps link indicator, each
++ * blinking on TX/RX activity.  A board that wires only two of the three
++ * pins to a connector therefore ends up with the wrong LED lit for the
++ * negotiated speed.
++ *
++ * The registers are written here rather than from the LED class netdev
++ * trigger because of_phy_leds() runs during PHY probe, before the PHY is
++ * attached to a network device, so the netdev trigger cannot hand the
++ * hardware over to the PHY at that point.
++ */
++static int yt8531_led_config_init(struct phy_device *phydev)
++{
++	static const char * const prop_name[YT8521_MAX_LEDS] = {
++		"motorcomm,led0-config",
++		"motorcomm,led1-config",
++		"motorcomm,led2-config",
++	};
++	struct device *dev = &phydev->mdio.dev;
++	u8 i;
++
++	for (i = 0; i < YT8521_MAX_LEDS; i++) {
++		u32 val;
++		int ret;
++
++		if (device_property_read_u32(dev, prop_name[i], &val))
++			continue;
++
++		if (val > 0xffff)
++			return -EINVAL;
++
++		ret = ytphy_write_ext_with_lock(phydev,
++						 YT8521_LED0_CFG_REG + i,
++						 val);
++		if (ret < 0)
++			return ret;
++	}
++
++	return 0;
++}
++
+ static int yt8531_config_init(struct phy_device *phydev)
+ {
+ 	struct device *dev = &phydev->mdio.dev;
+@@ -1822,6 +1891,10 @@
+ 	}
+ 
+ 	ret = yt8531_set_ds(phydev);
++	if (ret < 0)
++		return ret;
++
++	ret = yt8531_led_config_init(phydev);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -3047,6 +3120,9 @@
+ 		.get_wol	= ytphy_get_wol,
+ 		.set_wol	= yt8531_set_wol,
+ 		.link_change_notify = yt8531_link_change_notify,
++		.led_hw_is_supported = yt8521_led_hw_is_supported,
++		.led_hw_control_set = yt8521_led_hw_control_set,
++		.led_hw_control_get = yt8521_led_hw_control_get,
+ 	},
+ 	{
+ 		PHY_ID_MATCH_EXACT(PHY_ID_YT8531S),
