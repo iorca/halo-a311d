@@ -22,6 +22,7 @@
 #   target=rootfs    只编 rootfs
 #   target=firmware  只编固件
 #   target=build     全部 artifact（**完整镜像在这里**，~2h）
+#                    ⚠ 镜像由 armbian 直接压成 .img.xz 再上传，Release 里没有裸 .img
 #
 # ⚠⚠ armbian 的 target 必须来自 lib/functions/cli/commands.sh 的别名表：
 #   kernel / kernel-dtb / uboot / rootfs / firmware / build / dts-check ...
@@ -313,6 +314,27 @@ jobs:
           export BUILD_MINIMAL=yes
           # 本板无视频输出，声明后连桌面选项都不会问
           export HAS_VIDEO_OUTPUT=no
+          # ===============================================================
+          # ⚠⚠ 镜像压缩 —— 1.68 GiB 裸 .img 传 artifact / Release 下载太慢
+          #
+          # 依据 armbian lib/functions/image/compress-checksum.sh:
+          #   - COMPRESS_OUTPUTIMAGE 用**子串匹配** *xz* / *zst* / *sha*，设 "xz" 即走 xz 分支
+          #   - xz 分支源码注释原文 "If xz is provided with input but no output,
+          #     it will delete the input" → 裸 .img 自动删除，产物只有 .img.xz
+          #   - ⚠ BETA=no 时 armbian 强制 xz -0（几乎不压），必须显式给级别：
+          #     declare xz_compression_ratio_image="${IMAGE_XZ_COMPRESSION_RATIO:-...}"
+          #
+          # 选 xz 不选 zst：Armbian 官方镜像惯例，balenaEtcher / 7-Zip 可直接刷，
+          # xz-utils 已在 Install build dependencies 里装好。
+          # 级别给 6：arm64 runner 内存有限，-9 每线程约 674MB 容易 OOM。
+          # 只在 build / rootfs 这类出镜像的 target 生效，kernel/uboot 不受影响。
+          #
+          # ⚠ 若 armbian 内部 config 覆盖了环境变量，Collect artifacts 的硬校验
+          #   会判红并报「COMPRESS_OUTPUTIMAGE 未生效」，不会静默发裸镜像。
+          #   首次跑看日志里的 "Compressing with xz" + 产物 .img.xz 确认。
+          # ===============================================================
+          export COMPRESS_OUTPUTIMAGE="xz"
+          export IMAGE_XZ_COMPRESSION_RATIO="6"
           echo ">>> compile.sh $TGT BOARD=${{ env.BOARD }} BRANCH=${{ env.BRANCH }}"
           #⚠ RELEASE 是 rootfs/build 的必填参数，
           #   缺了报 "Param 'RELEASE' is not set but needs to be set for rootfs CLI"
@@ -380,7 +402,7 @@ jobs:
           # 完整镜像（target=full_firmware 时才有）
           if [ -d output/images ]; then
             echo "--- 完整镜像 ---"
-            find output/images -type f \( -name '*.img' -o -name '*.7z' -o -name '*.xz' \) \
+            find output/images -type f \( -name '*.img' -o -name '*.7z' -o -name '*.xz' -o -name '*.zst' -o -name '*.gz' \) \
               -exec ls -la {} \; | head -20
             mkdir -p out-halo/image
             cp -a output/images/. out-halo/image/ 2>/dev/null || true
@@ -444,7 +466,19 @@ jobs:
               ;;
             build)
               require "内核 image deb" output 'linux-image-*.deb'
-              require "完整镜像" output '*.img' '*.img.xz' '*.img.zst' '*.7z'
+              # ⚠⚠ 只认 .img.xz —— 压缩是发布前的硬要求。
+              #   armbian 压缩后会删掉裸 .img，所以再查一次「没有裸 .img」。
+              #   变量没生效就让 CI 红并给出诊断，绝不静默发 1.68 GiB 裸镜像。
+              require "完整镜像(.img.xz)" output '*.img.xz'
+              # ⚠ 用 -print -quit 而不是 find|grep -q：后者在 pipefail 下
+              #   find 收到 SIGPIPE 返回 141，if 会判 false → 漏检。
+              if [ -d output/images ] && \
+                 [ -n "$(find output/images -maxdepth 1 -name '*.img' -type f -print -quit 2>/dev/null)" ]; then
+                echo "::error::发现未压缩的 .img —— COMPRESS_OUTPUTIMAGE 未生效，检查 Build kernel 的 export"
+                find output/images -maxdepth 1 -name '*.img' -type f -exec ls -la {} \;
+                exit 1
+              fi
+              echo "  ✓ 镜像已压缩为 .img.xz，无裸 .img 残留"
               ;;
             uboot)
               # armbian lib/functions/artifacts/artifact-uboot.sh:154
@@ -783,17 +817,25 @@ jobs:
             ls -la "$STAGE" | tail -n +2 | awk '{printf "- `%s` (%d B)\n", $NF, $5}'
             echo
             echo "### 刷写"
+            echo "> 镜像以 \`.img.xz\` 发布（armbian \`COMPRESS_OUTPUTIMAGE=xz\`），"
+            echo "> 体积远小于 1.68 GiB 裸镜像，下载后不用先解出完整 .img。"
             echo '```bash'
             echo "# ⚠ 先确认设备名，别刷错盘："
             echo "lsblk"
             echo "dmesg | grep -i mmc"
             echo
+            echo "# Release 附件带 tag 前缀，形如 <tag>-Armbian_...img.xz，先看一眼："
+            echo "ls -lh *Armbian_*.img.xz"
+            echo
+            echo "# 流式解压刷写："
             echo "# 刷到 SD 卡座（底板 CARD1，&sd_emmc_b）"
-            echo "dd if=Armbian_*.img of=/dev/sdX bs=4M conv=fsync status=progress"
+            echo "xz -dc *Armbian_*.img.xz | dd of=/dev/sdX bs=4M conv=fsync status=progress"
             echo
             echo "# 刷到 eMMC（核心板，&sd_emmc_c）"
-            echo "dd if=Armbian_*.img of=/dev/mmcblkX bs=4M conv=fsync status=progress"
+            echo "xz -dc *Armbian_*.img.xz | dd of=/dev/mmcblkX bs=4M conv=fsync status=progress"
             echo '```'
+            echo
+            echo "> 也可用 balenaEtcher 直接选 \`.img.xz\` 刷，或用 7-Zip / \`xz -d\` 先解出 .img。"
             echo
             echo "> 板上有 SD 卡座（CARD1，信号经 CN2 + ESD U35/U36/U37），"
             echo "> 也有核心板 eMMC，两者都由本板 dts 启用（\`&sd_emmc_b\` / \`&sd_emmc_c\`）。"

@@ -21,13 +21,19 @@ Amlogic A311D —— **Halo 底板** + **荣品 PRO-A311D 核心板**，mainline
 | `build` | gxlimg | ✅ | run `39547492248`，Runtime 54:37，**1.68 GiB 镜像**，`boot.scr` 已含冷切换逻辑 |
 | `rootfs` | — | — | 未单独跑；`build` 已含 rootfs 环节 |
 
-⚠ **全部只在 CI 里验证过「编得出来 + 文件都在」，真机启动仍未验证。** 见文末已知限制。
+⚠ 上表是 CI 实证（编得出来 + 文件都在）。真机进展见文末「刷写与启动顺序」：
+2026-11-09 清除 eMMC 三处 FIP 后，**Armbian 从 TF 卡成功启动**
+（`root@halo-a311d`，根在 `/dev/mmcblk0p1`）。厂商 Android 已移除、DDR 正常。
+**以太网 1Gbps 已跑通**（`end0`、`Link is Up - 1Gbps/Full`、`crc_error=0`、
+DHCP 拿到 `192.168.5.120`、ping 8.8.8.8 通）。
+剩余待验：**PHY LED 灯**（需重编内核带上 `patch/apply/meson64-6.18/`）、
+冷切换 `gpio read 51` 的真机值（已确认应为 66，走 `armbianEnv.txt` 后门）。
 
 ### Release 发布：只认「可刷写镜像」
 
-判据是**产物性质** —— 五个 target 里只有 `build` 会产出 `.img`，也只有它刷得进机器。
-所以 Release 只在 `TARGET_KIND == build` 时发布，`kernel`/`uboot`/`rootfs`/`firmware`
-出的都是 deb 或归档，不发布。
+判据是**产物性质** —— 五个 target 里只有 `build` 会产出可刷写镜像（压缩后 `.img.xz`），
+也只有它刷得进机器。所以 Release 只在 `TARGET_KIND == build` 时发布，
+`kernel`/`uboot`/`rootfs`/`firmware` 出的都是 deb 或归档，不发布。
 
 两种发版方式，**任选其一**：
 
@@ -45,7 +51,10 @@ git push origin v2026.10.21-mainline
 - `tag` 可留空（自动生成 `build-<日期>-<sha8>`），也可手填如 `v2026.10.21-mainline`
 
 > 推 tag 时 `TARGET_KIND` 被强制为 `build`（`.github/workflows/kernel.yml:95`），
-> 两种方式最终都会跑完整镜像并发布 `.img` + 两个 dtb + deb。
+> 两种方式最终都会跑完整镜像并发布 `.img.xz` + 两个 dtb + deb。
+> 镜像由 armbian 在构建时直接压缩（`COMPRESS_OUTPUTIMAGE=xz`，裸 `.img` 自动删除），
+> 不是事后压一遍；`Collect artifacts` 会硬校验「必须有 `.img.xz`、不许有裸 `.img`」，
+> 压缩没生效直接判红。
 >
 > 真兜底是脚本里的 `IMAGES` 空值检查：找不到镜像直接 `exit 1`，
 > 不会发出一个「只有 dtb、没有可刷镜像」的 Release。
@@ -469,7 +478,7 @@ Amlogic PWM 控制器**两两配对**（AB / CD / EF），每个控制器 2 个�
 ## 以太网
 
 PHY = **U23 = YT8531H-CA**（裕太微 Motorcomm，网表实测；Pin-to-Pin 兼容 RTL8211F）。
-RGMII 千兆，`reg = <1>`（strap 实测），`phy-mode = "rgmii"`，延时由 MAC 侧提供：
+RGMII 千兆，`reg = <1>`（strap 实测），`phy-mode = "rgmii"`，**RGMII 两端都不加延时**：
 
 ```dts
 &ethmac {
@@ -479,7 +488,6 @@ RGMII 千兆，`reg = <1>`（strap 实测），`phy-mode = "rgmii"`，延时由 
     phy-mode = "rgmii";
     phy-handle = <&external_phy>;
     amlogic,tx-delay-ns = <2>;
-    rx-internal-delay-ps = <2000>;
 };
 
 &ext_mdio {
@@ -492,17 +500,91 @@ RGMII 千兆，`reg = <1>`（strap 实测），`phy-mode = "rgmii"`，延时由 
 
 驱动：mainline `CONFIG_MOTORCOMM_PHY`（`drivers/net/phy/motorcomm.c`），
 MDIO 按 `PHY_ID_YT8531 = 0x4f51e91b` 用 `PHY_ID_MATCH_EXACT` 匹配，无需 `compatible`。
-`dmesg` 应显示 `YT8531 Gigabit Ethernet`。
+实测 `dmesg` 打印 `YT8531 Gigabit Ethernet`，
+`/sys/bus/mdio_bus/devices/mdio_mux-0.0:01/phy_id = 0x4f51e91b`。
 
 armbian `config/kernel/linux-meson64-current.config:926` 是 `CONFIG_MOTORCOMM_PHY=m`
 （edge 配置 `:896` 同为 `=m`）。**模块形式够用**：phylib 在 MDIO 枚举到 PHY 时
 按 ID 自动 `request_module()` 加载 `motorcomm.ko`，不需要 `modules-load.d`。
-前提是 `linux-image` 包里的模块进了 rootfs（armbian 默认全装）。
-⚠ 若裁剪过 rootfs 或用了自定义 initramfs，需确认 `motorcomm.ko` 在，
-否则 PHY 会退化成 Generic PHY —— 链路可能起但延时/特性不对。
 
-⚠ 不用 `phy-mode = "rgmii-id"`：PHY strap 的 TXDLY 已开，
-再叠加 MAC 延时会造成 4ns 双倍偏移。
+### ⚠⚠ RGMII 延时：两端都不加（2026-11-09 真机实测，1Gbps 跑通）
+
+⚠ **不要写 `rx-internal-delay-ps`**。A311D = `amlogic,meson-g12a-dwmac` →
+`has_prg_eth1_rgmii_rx_delay = true` → 该属性被写进 `PRG_ETH1` 的 `CFG_RXCLK_DLY`
+（0..3000ps、200ps 步进），给**输入 RX_CLK** 加延迟 = 把采样点往后推。
+
+| MAC `rx-internal-delay-ps` | 实测（1Gbps 真机） |
+|---|---|
+| **0** | ✅ `framecount` 增长、`crc_error=0`、DHCP 拿到 `192.168.5.120`、ping 8.8.8.8 通 |
+| 2000 | ❌ 帧能进但 **100% CRC 错**（RX packets=0） |
+| 3000 | ❌ 连帧都同步不了（`framecount=0`） |
+
+⚠ 也**不要**用 `phy-mode = "rgmii-id"` / `"rgmii-rxid"`：`rgmii-rxid` 让 motorcomm
+给 PHY 加 RX delay，但 `dwmac-meson8b.c` 在同一 switch 的另一分支把 MAC 侧
+`cfg_rxclk_dly` 清零 —— **两个驱动互斥，软件没法同时给两侧加**。
+实测 `rgmii-rxid` + PHY 1950ps → `framecount=0`。
+
+⚠ **硬件 strap：底板 R62(RXDLY) / R70(TXDLY) 两颗都不要贴**。
+R70 会给 MAC→PHY 方向再加 2ns（与 `amlogic,tx-delay-ns=2` 重复），
+R62 同理会破坏 PHY→MAC 方向。且 `motorcomm.c` 的
+`ytphy_rgmii_clk_delay_config()` 在 `phy-mode="rgmii"` 下会把 PHY `0xA003` 的
+RX delay / GE TX delay 字段**清零**（覆盖 strap）。
+
+### ⚠⚠ PHY LED（RJ45 两侧两盏灯）
+
+**根因不是硬件坏，是 YT8531 的出厂 LED 语义与本板接法不匹配。**
+
+YT8531 的三个 LED 引脚与 `CFG_*` 复用（strap 只在上电瞬间采样，之后转为 LED 输出，
+行为完全由 `LEDx_CFG` 寄存器 `EXT_0xA00C/0xA00D/0xA00E` 决定）：
+
+| PHY 引脚 | 本板接法 | 出厂默认（datasheet Table 7） |
+|---|---|---|
+| .32 = LED0/CFG_EXT | 只接 R81(4.7k) 到 GND，**没接灯** | 常亮 = **10M** link |
+| .33 = LED1/CFG_LDO0 | R67(510Ω) → RJ1.11 → **绿灯** | 常亮 = **100M** link |
+| .34 = LED2/CFG_LDO1 | R66(510Ω) → RJ1.14 → **黄灯** | 常亮 = **1000M** link |
+
+出厂是「**一盏灯管一档速率**」。本板只接了 LED1/LED2，1G 链路时点亮的是**黄灯**，
+而**绿灯是 100M 灯**，全程不亮 —— 与实测「绿灯从来没反应、降速到 100M 时亮过」完全吻合。
+绿灯在 1G 下不亮是**出厂语义**，不是硬件故障。
+
+本板改成常规 RJ45 语义（绿灯 = 链路通 + 活动闪；黄灯 = 1000M + 活动闪）：
+
+```dts
+&ext_mdio {
+    external_phy: ethernet-phy@1 {
+        reg = <1>;
+        max-speed = <1000>;
+        motorcomm,led1-config = <0x2670>;  /* 绿灯：任意速率 link + 活动闪 */
+        motorcomm,led2-config = <0x2640>;  /* 黄灯：1000M link + 活动闪 */
+    };
+};
+```
+
+位定义（datasheet Table 24/25/26，同 LED0 语义）：
+bit13 `act_blk_ind` 有流量就闪、bit12/11 `fdx/hdx_on_en` 双工常亮、
+bit10/9 `txact/rxact_blk_en` 活动闪烁、bit6/5/4 `gt/ht/bt_on_en` 速率常亮。
+**这些位是"描述性"的** —— PHY 自己判断当前速率与收发活动，写一次即可，
+不需要内核再参与。
+
+⚠ **需要内核侧支持**：内核 6.18 的 `motorcomm.c` **没有** YT8531 的
+`led_hw_*` 回调（上游 commit `a8abe8e210c1` 2025-10-26 才加上，7.3+ 已自带）。
+本仓库用 `patch/apply/meson64-6.18/0001-net-phy-motorcomm-backport-YT8531-LED-support.patch`
+回补（upstream 3 行 + 一个按 DT 属性写 LED_CFG 的 `yt8531_led_config_init()`）。
+
+⚠ **为什么不用 upstream 的 LED classdev + netdev trigger**：
+`of_phy_leds()` 在 `phy_probe()` 里跑，此时 `phydev->attached_dev` 还是 NULL，
+而 `netdev_trig_activate()` 靠 `hw_control_get_device()` 拿到 netdev 才切到
+硬件控制模式 —— 拿不到就整个跳过硬件路径，退回软件闪烁，而 `motorcomm`
+没有 `led_brightness_set` 回调 → 什么都不会发生。
+所以改成在 `config_init()` 里直接写寄存器（`phy_init_hw()` 里
+`soft_reset` 先于 `config_init`，写进去的值不会被复位清掉 —— 同一机制下
+RGMII 延时 `0xA003` 的写入已被 1Gbps 真机验证稳定 40s+）。
+
+⚠ `motorcomm,led<N>-config` 是本仓库自定义属性（`motorcomm` 是上游已注册的
+vendor prefix，`vendor-prefixes.yaml:1055`）。PHY 节点**故意不写 `compatible`**：
+写了会匹配 `motorcomm,yt8xxx.yaml`（`unevaluatedProperties: false`），
+未声明的属性会被 dt-schema 判 error；不写则只匹配 `ethernet-phy.yaml`
+（顶层 `additionalProperties: true`），自定义属性放行。
 
 ---
 
@@ -621,17 +703,28 @@ dmesg | grep -i mmc
 ```
 
 ```bash
-# 刷到 TF 卡座（CARD1）
-dd if=Armbian_*.img of=/dev/sdX bs=4M conv=fsync status=progress
-# 刷到 eMMC
-dd if=Armbian_*.img of=/dev/mmcblkX bs=4M conv=fsync status=progress
+# Release 附件带 tag 前缀，形如 <tag>-Armbian_...img.xz
+ls -lh *Armbian_*.img.xz
+
+# 流式解压刷到 TF 卡座（CARD1）
+xz -dc *Armbian_*.img.xz | dd of=/dev/sdX bs=4M conv=fsync status=progress
+# 流式解压刷到 eMMC
+xz -dc *Armbian_*.img.xz | dd of=/dev/mmcblkX bs=4M conv=fsync status=progress
 ```
+> 镜像由 CI 压成 `.img.xz` 发布（armbian `COMPRESS_OUTPUTIMAGE=xz`），
+> 不必先解出 1.68 GiB 的裸 `.img`；balenaEtcher 也可直接选 `.img.xz` 刷。
+> ⚠ **历史 Release（含 `v2026.10.24-libreelec-*`）仍是裸 `.img`**，
+> 那些用原来的 `dd if=Armbian_*.img of=/dev/sdX ...` 刷即可，别套 `xz -dc`。
 
-### ⚠ G12B 的 BootROM 优先从 eMMC 启动
+### G12B BootROM 顺序（U-Boot 官方 boot-flow.html，非推断）
 
-U-Boot 官方 `board/amlogic/boot-flow.html`：G12*/SM1 默认 POC=1/1/1 的顺序是
-**NAND/eMMC → SD → USB**。核心板 eMMC 里有完好的厂商 FIP，BootROM 在 eMMC 这级
-就成功，**永远不会 fallback 到 SD**。同 SoC 的 Khadas VIM3 也是这个行为。
+默认 POC=1/1/1：**NAND/eMMC → SDCard → USB Device**。
+eMMC 依次查 **user area → boot0 → boot1**，三处任一有有效 FIP 就从 eMMC 起，
+**永远不会 fallback 到 SD**。SD 与 eMMC 都期望 FIP 在 **sector 1（512B 偏移）**。
+
+顺序是 BootROM 硬编码，软件改不了。**要让 TF 卡成为第一顺位，只能让 eMMC 不可启动：
+三处 FIP 全擦。** 擦空后每次上电都跳过 eMMC 直读 TF 卡，TF 卡就是唯一启动介质，
+换卡即换系统。
 
 判断起的是谁，看串口首行和后续：
 ```
@@ -642,10 +735,77 @@ U-Boot 2015.01 (Sep 16 2022)        ← 厂商 Android u-boot
 Linux version 4.9.113 (rpdzkj@90)   ← 厂商 Android 内核
 root=/dev/mmcblk0p18                ← 根挂在 eMMC 的 system 分区
 ```
-只要看到这几行，**镜像根本没被读**，跟镜像好坏、烧录对错都无关。
+这是**刷 cainiao FIP 之前**的日志特征：看到这几行 = 起的是厂商 Android，
+TF 卡镜像根本没被读，跟镜像好坏、烧录对错都无关。
+现在 eMMC 里已是主线 U-Boot，首行仍是 `POC:F;EMMC:0;READ:0` +
+`Load FIP HDR from eMMC`，但版本变成 `U-Boot 2026.01_armbian ... cainiao-cniot-core`。
 （若同时出现 `mmcblk1: sd:... / mmcblk1: p1`，说明 TF 卡烧录成功、硬件正常。）
 
+### 真机进展（2026-11-09）
+
+| 事实 | 证据 |
+|---|---|
+| 厂商 Android 已移除 | 已把 cainiao 的 `fip-with-mainline-uboot.burn.img` 刷进 eMMC，串口跑的是 `U-Boot 2026.01_armbian ... cainiao-cniot-core` + `BL31 v1.3`，不再是 `U-Boot 2015.01` |
+| DDR 正常 | `2D training succeed` / `DDR size: 2048MB` / cs0,cs1 DataBus test pass |
+| **TF 卡仍起不来** | 菜鸟 U-Boot 只枚举 `mmc@ffe03000: 0, mmc@ffe07000: 1`，**缺 `ffe05000` = `&sd_emmc_b` = CARD1 卡座**（菜鸟板子无 SD 卡槽，其 dtb 里该节点 disabled）；`MMC Device 2 not found` 是证据 |
+| `Card did not respond to voltage select! : -110` | **U-Boot 阶段**戳 SDIO 控制器报的，不是 BootROM 报的，别当「BootROM 读不了 SD」 |
+| 以太网 `PHY auto negotiation TIMEOUT` | 菜鸟 dtb 的 RTL8211F 对不上本板 YT8531H-CA；本板 dts 已配对 |
+| 本板 U-Boot 的 SD 检测**无需修改** | U-Boot 内嵌 dtb 是 VIM3 的（`BOOTCONFIG=khadas-vim3_defconfig`）：`&sd_emmc_b` okay、pinctrl 与本板 `dt/meson-halo-a311d.dts:753` 同组；`cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_LOW>` 与本板 `CARD_EN_DET → CN2.49 → GPIOC_6`、4.7k 上拉、插卡短地（低有效）逐项一致 |
+| ✅ **Armbian 从 TF 卡启动成功**（12:25） | `root@halo-a311d:~#`；`df -h` 显示 `/dev/mmcblk0p1` 30G 挂在 `/`；`fdisk -l` 里 `/dev/mmcblk1`（eMMC 28.83 GiB，带 boot0/boot1 各 4 MiB）**已无分区表**。⚠ Linux 编号与 U-Boot 相反：**`mmcblk0` = TF 卡、`mmcblk1` = eMMC** |
+
+### ✅ 主方案（2026-11-09 真机跑通）：清 eMMC 三处 FIP，让 TF 卡接管
+
+⚠ **不可逆，但不是砖**：三处擦空后若 TF 卡 FIP 起不来，BootROM 落到 USB Device
+（实测 USB Burning Tool 能列出 `HUB2-4`），用 cainiao 的 `.burn.img` 可刷回。
+厂商 Android 将彻底起不来 —— 本方案就是要这个结果。
+
+TF 卡插**板载 CARD1**（不是 OTG 读卡器），上电在 `Hit any key to stop autoboot`
+打断，进 U-Boot 命令行。**下面每一行单独发送、不带任何注释、等回显再发下一条**
+（实测整块粘贴带中文注释会串行，导致某条命令静默不执行）：
+
+```bash
+mmc list
+mmc dev 1 0
+mmc erase 0 2000
+mmc dev 1 1
+mmc erase 0 2000
+mmc dev 1 2
+mmc erase 0 2000
+mmc dev 1 0
+mmc partconf 1 1 0 0
+reset
+```
+
+⚠ **两个真机踩过的坑**：
+1. **U-Boot 的数字按十六进制解析**。`mmc erase 0 8192` 实测输出
+   `count 33170`（= 0x8192），实际擦 16.2 MiB 而非 4 MiB。boot 分区只有
+   `Boot Capacity: 4 MiB ENH`，照搬会超范围 → 用 **`0 2000`**（0x2000 = 8192
+   blocks = 4 MiB，也是 `Erase Group Size 512 KiB` 的整数倍）。
+2. **用 `mmc dev 1 <part>` 明确切硬件分区**（`0`=user / `1`=boot0 / `2`=boot1），
+   每步回显 `mmc1(part N) is current device` 可核对；**不要依赖 `mmc partconf`
+   的副作用** —— 它只写 eMMC 的 PARTITION_CONFIG 寄存器，日志无法证明后续
+   `erase` 落在哪个分区。最后 `partconf 1 1 0 0` 是复位 `BOOT_PARTITION_ENABLE`，不能省。
+
+USB Burning Tool 会把 FIP **同时写进 user area 和 boot area** → 三处都有菜鸟 FIP，
+**只擦一处没用**：实测只擦 user area 后 BootROM 从 `part: 0` 回退到 `part: 1`，
+又从 boot0 起回菜鸟 U-Boot。三处全擦才会落到 SD。
+
+在能跑的 Linux 里操作（root）的等价写法：
+```bash
+dd if=/dev/zero of=/dev/mmcblkX bs=1MiB count=4
+echo 0 > /sys/block/mmcblkXboot0/force_ro
+echo 0 > /sys/block/mmcblkXboot1/force_ro
+dd if=/dev/zero of=/dev/mmcblkXboot0 bs=1MiB count=4
+dd if=/dev/zero of=/dev/mmcblkXboot1 bs=1MiB count=4
+```
+`/dev/mmcblkX` 先 `lsblk` 核实。
+
+⚠ **别用老命令**：`mmc dev 1 1 ; mmc erase 0 0x400` 那套是 Khadas VIM3 Nerves /
+厂商 U-Boot 2015 的语法，在菜鸟 U-Boot 2026.01 上不适用，范围也不全。
+
 ### 三条已实测无效的路
+
+（以下为刷 cainiao FIP 之前的实测，当时 eMMC 里还是厂商 Android u-boot。）
 
 | 做法 | 结果 | 原因 |
 |---|---|---|
@@ -657,12 +817,13 @@ root=/dev/mmcblk0p18                ← 根挂在 eMMC 的 system 分区
 Amlogic 打包固件（带 aml 分区描述/burn 配置），我们的 `.img` 是标准 MBR 磁盘镜像。
 但工具能列出设备（`HUB2-4`）→ **USB Device 模式是通的**，可走 pyamlboot。
 
-### ✅ 推荐：只把主线 U-Boot 的 FIP 刷进 eMMC（不重打包系统镜像）
+### 备选：只把主线 U-Boot FIP 刷进 eMMC（救援 / 只替换 bootloader 时用）
 
-**不要跟 BootROM 的启动优先级较劲。** BootROM 本来就从 eMMC 起，
-把 eMMC 里的厂商 FIP 换成**主线 U-Boot FIP** 即可：主线 U-Boot 自带以太网、
-USB、eMMC 驱动，起来后自己会按 `boot_targets` 扫描 eMMC / USB / 网口找
-`boot.scr`、extlinux、TFTP → TF 卡、U 盘、网络启动全都可用。
+**这条路线不达成本板目标**（FIP 仍在 eMMC，BootROM 第一顺位不变），
+只在「设备需要恢复出一个能用的 U-Boot」或「不想清空 eMMC」时用。
+把 eMMC 里的 FIP 换成**主线 U-Boot FIP**：主线 U-Boot 自带以太网、
+USB、eMMC 驱动，起来后自己会按 `boot_targets` 扫描找
+`boot.scr`、extlinux、TFTP → U 盘、网络启动可用。
 
 Amlogic USB Burning Tool 的 `.img` 是**专有固件格式，不是 disk image**，
 所以直接喂我们的 `Armbian_*.img` 会报「解析烧录固件失败」。
@@ -681,9 +842,10 @@ dpkg-deb -x linux-u-boot-halo-a311d-current_*.deb uboot-deb
 ```
 
 参考：[retro98boy/amlogic-devices / cainiao-cniot-core](https://github.com/retro98boy/amlogic-devices/blob/main/devices/cainiao-cniot-core/README.md)
-（同 A311D、无 SD 卡槽、同款 BootROM 行为）。
+（同 A311D、同款 BootROM 行为；**菜鸟板子自身无 SD 卡槽**，本板 CARD1 有 ——
+这正是菜鸟 U-Boot 里 `&sd_emmc_b` 被 disabled 的原因）。
 
-**也可用 dd 直接写**（厂商 Android 里已有 `console:/ $` shell，拿到 root 即可）：
+**也可用 dd 直接写**（在能跑的 Linux 里，root）：
 ```bash
 dd if=fip-with-mainline-uboot.bin of=/dev/mmcblkX bs=512 seek=1
 # 建议同时写 boot area：A311D 在 user area 找不到 FIP 后会查 boot0/boot1
@@ -692,28 +854,11 @@ echo 0 > /sys/block/mmcblkXboot1/force_ro
 dd if=fip-with-mainline-uboot.bin of=/dev/mmcblkXboot0 bs=512 seek=1
 dd if=fip-with-mainline-uboot.bin of=/dev/mmcblkXboot1 bs=512 seek=1
 ```
-⚠ 会顶掉厂商 Android 的 bootloader，**不可逆**，恢复需重刷厂商固件。
-/dev/mmcblkX 先用 `lsblk` 核实，别写错盘。
+⚠ 会覆盖 eMMC 上的 FIP，**不可逆**，恢复需 USB Burning Tool 重刷。
+`/dev/mmcblkX` 先用 `lsblk` 核实，别写错盘。
 
 仓库里现成的 FIP 原料：`fip-blob/halo-a311d/fip-vendor-mainline-uboot.bin`
 （1,522,032 B，`@AML` 头，`gxlimg -e` 实测可完整解包）。
-
-### 备选：让 BootROM 走 SD —— 清 eMMC boot 区
-
-⚠ **不可逆**：厂商 Android 将再也起不来，恢复需 USB Burning Tool 重刷厂商固件。
-数据分区不删，但没 bootloader 也用不了。动手前确认厂商系统还要不要。
-
-把卡插回**板载 TF 卡座 CARD1**（不是 OTG），在厂商 U-Boot 提示符
-（`Hit Enter or space or Ctrl+C key to stop autoboot` 时打断）执行：
-```
-mmc list                          # 先核实 eMMC 编号（日志 MMC(1)=eMMC / SDIO Port B=0, C=1）
-mmc dev 1 1 ; mmc erase 0 0x400   # boot0
-mmc dev 1 2 ; mmc erase 0 0x400   # boot1
-mmc dev 1 0 ; mmc erase 0 0x10000 # 主分区头
-reset
-```
-依据是 Khadas VIM3 官方 Nerves 文档的同款命令（同 A311D、同厂商 U-Boot 2015）。
-**本板 mmc 编号未实测**，先 `mmc list` 确认再擦。
 
 ### 备选：USB 启动（不动 eMMC）
 
@@ -736,7 +881,7 @@ FIP 落在 **sector 1（512B 偏移）**，正是 U-Boot 文档要求的 SD/eMMC
 
 | 项 | 说明 |
 |---|---|
-| **真机未跑通 Armbian** | 已上真机验证：镜像能烧进 TF 卡、Linux 能识别卡，但 **BootROM 仍从 eMMC 起厂商 Android**。原因见下节「刷写与启动顺序」|
+| **已从 TF 卡启动 Armbian，剩余功能待验** | 2026-11-09 12:25 清除 eMMC 三处 FIP 后跑通（`root@halo-a311d`，根在 TF 卡）。**尚未验证**：YT8531H-CA 以太网链路、冷切换 `gpio read 51` 的真机值、PCIe/USB3.0 两种 dtb 变体实际切换结果、音频/风扇（硬件本就未做）。见「刷写与启动顺序」|
 | `gpio read` 编号 | 51 是按「periphs 先探测」推的。上机若「贴了上拉却读到 LOW」，改 `althea_sel_num=66` 即可，不需重编 |
 | 音频 | **完全不使用音频功能**。DTS 里 TDM/PDM/声卡相关节点（`&tdmif_a`、`&tdmin_a`、`&tdmout_a`、`&toddr_a~c` 等）全部不使能 |
 | **散热风扇不转** | PWM 通道已在 DTS 里配好（`&pwm_AO_ab` 0(A) / GPIOAO_11），但**驱动电路（MOSFET + 续流二极管）layout 尚未完成** —— 网表上 `PWM_FAN` 只连一颗 1N5819WT 二极管，无风扇连接器、无 MOSFET。`/sys/class/pwm/` 会有该通道但无负载 |
