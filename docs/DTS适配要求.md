@@ -136,10 +136,12 @@ LED1/LED2/LED3 无 GPIO 控制 → DTS 不写对应 gpio-leds。
 >
 > → **YT8531 功耗、温度、ESD 全面更优**，是 RTL8211F 的国产 pin-to-pin 替代料。
 >
-> **⚠ YT8531 最大的坑 —— RGMII 延时（`rgmii-id`）**
-> YT8531 常需 `phy-mode = "rgmii-id"`（MAC 与 PHY 各提供约 2ns 延时）。
-> 由 strap 电阻决定：`RGMII_RXD0/RXDLY` 上拉 → RX 延时开；`RGMII_RXD1/TXDLY` 下拉 → TX 延时关。
-> 本板 R62~R65 + R75/R77/R79/R80 已配这些 strap（见上表）。
+> **⚠ YT8531 的 RGMII 延时 —— 本板实测：两端都不加（2026-11-09）**
+> ⚠ **不要用 `phy-mode = "rgmii-id"`**，也**不要写 `rx-internal-delay-ps`**：
+> 实测 `rx-internal-delay-ps` = 0 / 2000 / 3000，只有 **0** 能跑通 1Gbps
+> （2000 → 100% CRC 错；3000 → 连帧都同步不了）。
+> 底板 **R62(RXDLY) / R70(TXDLY) 两颗都不要贴**（R70 曾误贴，已摘除）。
+> 详见 README「以太网」节的实测表与源码依据。
 > **mainline 已内置 `CONFIG_MOTORCOMM_PHY` 驱动**，无需移植。
 > 验证：`dmesg` 应打印 `YT8531 Gigabit Ethernet`；若显示 RTL8211F 说明贴的是替代料或 PHY ID 读取异常。
 
@@ -306,14 +308,19 @@ RGMII 规范要求 **2ns** 的 TX 时钟偏移，可在 MAC 侧或 PHY 侧提供
 
 **Linux DTS 写法（不要直接写寄存器，用 stmmac 的 phy-mode）**
 
-| phy-mode | 含义 |
-|----------|------|
-| `rgmii` | 两侧都不加延迟 |
-| **`rgmii-id`** | **MAC 侧加 TX+RX 延迟**（→ 驱动设 bit[6:5]=01）|
-| `rgmii-txid` | 仅 MAC 侧加 TX 延迟 |
-| `rgmii-rxid` | 仅 MAC 侧加 RX 延迟 |
+| phy-mode | 含义 | 本板 |
+|----------|------|------|
+| `rgmii` | 两侧都不加延迟 | ✅ **用这个** |
+| `rgmii-id` | MAC 侧加 TX+RX 延迟 | ❌ 与 motorcomm 驱动互斥 |
+| `rgmii-txid` | 仅 MAC 侧加 TX 延迟 | ❌ |
+| `rgmii-rxid` | 仅 MAC 侧加 RX 延迟 | ❌ 与 motorcomm 驱动互斥 |
 
-- **本板建议 `rgmii-id`**：YT8531 常需 2ns 偏移；由 strap 电阻（R62~R65、R75/R77/R79/R80）决定实际生效位置。
+- **本板用 `rgmii` + `amlogic,tx-delay-ns = <2>`，且不写 `rx-internal-delay-ps`**
+  （2026-11-09 真机实测，1Gbps 跑通、crc_error=0、DHCP 拿到地址、外网通）。
+- ⚠ `rgmii-rxid` 时 motorcomm 给 PHY 加 RX delay，但 `dwmac-meson8b.c` 的
+  `meson8b_init_rgmii_delays()` 在同一 switch 的另一分支把 MAC 侧 `cfg_rxclk_dly`
+  清零 → **两个驱动互斥，软件无法同时给两侧加 delay**。
+  实测 `rgmii-rxid` + PHY 1950ps → `framecount=0`（完全收不到）。
 - 驱动：`mainline` 已内置 `CONFIG_MOTORCOMM_PHY`。
 - 验证：`dmesg` 应打印 `YT8531 Gigabit Ethernet`；
   `PHY_ID_YT8531 = 0x4f51e91b`（`motorcomm.c`）。
@@ -633,7 +640,7 @@ MT9700 = **单P-MOS 负载开关**（Aerosemi），80mΩ，USB VBUS 供电用。
 
 | 优先级 | 节点 | 关键动作 |
 |--------|------|---------|
-| P0 | `&gmac0` | `phy-mode="rgmii-id"`（YT8531 需延时），复位用核心板 `RGMII_RST#` |
+| P0 | `&gmac0` | `phy-mode="rgmii"` + `amlogic,tx-delay-ns=<2>`（**两端都不加 delay**，2026-11-09 实测），复位用核心板 `RGMII_RST#` |
 | P0 | `&hdmi_tx` + `&cec` | HPD/CEC/SCL/SDA GPIO |
 | P0 | `&pcie` + FUSB340 | `GPIOA_2` = **FUSB340 `.6=SEL`**：LOW=SW1=USB3.0、HIGH=SW2=PCIe；`.7=OE` 恒接地 |
 | P1 | `&dsi`（显示） | MIPI DSI 走 FPC3 |

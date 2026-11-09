@@ -137,13 +137,17 @@
 |---|---|
 | MAC | `&gmac0`（RGMII，与 RMII 互斥，复位时由 `PRG_ETH_REG1[0]`锁定）|
 | PHY | U23 = **YT8531H-CA**，`reg = <1>`（strap R78→A_3V3 / R79,R80→GND）|
-| **phy-mode** | **`"rgmii-id"`**（PCB 等长散布仅~1ps，2ns 必须由 PHY 内部延迟线提供）|
+| **phy-mode** | **`"rgmii"`**（本板实测两端都不加 delay，见下方说明；PCB 等长散布仅~1ps）|
 | 复位 | `RGMII_RST#`(CN3-2) ─R50(0Ω)─→ PHY0_RSTN(U23-12)，核心板拉低即复位 |
 | 驱动 | mainline `motorcomm.c`（`CONFIG_MOTORCOMM_PHY`），MDIO 按 `0x4f51e91b` 匹配 |
 
 > ⚠ 本节 `rgmii-id` 结论是**旧版历史内容，已作废**。
-> 现行 dts 用 `phy-mode="rgmii"` + MAC 侧 `amlogic,tx-delay-ns=2` + `rx-internal-delay-ps=2000`
-> （PHY strap 的 TXDLY 已开，再叠 `rgmii-id` 会成 4ns 双倍偏移）。
+> 现行 dts 用 `phy-mode="rgmii"` + `amlogic,tx-delay-ns=2`，**不写 `rx-internal-delay-ps`**，
+> 且底板 **R62(RXDLY) / R70(TXDLY) 两颗都不贴**。
+> 依据（2026-11-09 真机实测）：`rx-internal-delay-ps` = 0 时 1Gbps 跑通
+> （crc_error=0、DHCP 拿到地址、ping 8.8.8.8 通）；= 2000 时 100% CRC 错；
+> = 3000 时连帧都同步不了；`rgmii-rxid` + PHY 1950ps → framecount=0
+> （与 motorcomm 驱动互斥，详见 README「以太网」节）。
 > 厂商内核里 `motorcomm.c` 是否存在也需实测确认。
 
 ### 2.5 温湿度 SHT40（🔴 新增一路）
@@ -224,7 +228,7 @@
 
 1. **注释 MIPI dtsi include**（pro-a311d.dts:7）→ 释放 GPIOA_2/A_8/A_9、GPIOH_4
 2. **新增 SPI 节点 + pinctrl**（屏）—— 先解决 3 个 GPIO 冲突
-3. **新增以太网 `&gmac0`**（`rgmii-id`, `reg=<1>`）
+3. **新增以太网 `&gmac0`**（`rgmii` + `amlogic,tx-delay-ns=<2>`, `reg=<1>`）
 4. **新增 SHT40**（U42 一颗，走 `&i2c3`；U45 因信号线网表悬空未启用）
 5. **新增 FUSB340 SEL（GPIOA_2）**
 6. **&isp disabled**（摄像头未用）

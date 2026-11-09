@@ -43,9 +43,9 @@
 |----|------|---------|
 | **YT8531H PHY 地址** | **1**（`3'b001`） | strap 实测：R78→A_3V3 / R79,R80→GND |
 | **YT8531H-CA PHY 地址** | **1**（`3'b001`） | `dmesg` 应显示 `YT8531 Gigabit Ethernet`，`PHY_ID_YT8531 = 0x4f51e91b` |
-| **RGMII 延时** | **PCB 等长，2ns 全靠 PHY 内部延迟线** | 实测：TX 组散布 6.5mil(≈1ps)、RX 组 7.3mil(≈1ps)，clock-data 偏移仅 0.14ps vs 需求 2000ps |
-| **phy-mode** | **`rgmii-id`** | 驱动用软件寄存器强制开 TX+RX 双延时；**禁用 `rgmii`（会关掉延时）** |
-| ✅ 无需改硬件 | strap 状态无关 | `rgmii-id` 下驱动覆盖 strap，RXDLY 上下拉均不影响 |
+| **RGMII 延时** | 厂商：2ns 全靠 PHY 内部延迟线 | 本板实测：**两端都不加**。`rx-internal-delay-ps` = 0 ✅（1Gbps 通、crc_error=0）/ 2000 ❌100% CRC 错 / 3000 ❌连帧都同步不了 |
+| **phy-mode** | 厂商 **`rgmii-id`** | 本板用 **`rgmii`**：`rgmii-rxid`/`rgmii-id` 与 motorcomm 驱动互斥（`dwmac-meson8b.c` 会把 MAC 侧 `cfg_rxclk_dly` 清零），实测 `rgmii-rxid` + PHY 1950ps → framecount=0 |
+| 硬件 strap | 厂商：strap 状态被驱动覆盖 | 本板：**R62(RXDLY)/R70(TXDLY) 两颗都不贴**（R70 误贴会与 `amlogic,tx-delay-ns=2` 重复加 TX 延时）；`rgmii` 下 motorcomm 也会把 PHY 0xA003 延时字段清零 |
 | **SHT40 地址** | 0x44（固定） | U42 走 `&i2c3`；U45 已移除（信号线悬空） |
 | **SDIO reg** | AP6256 在 bus 上 | 查 `ls /sys/bus/mmc/devices/` |
 | **mmc alias** | mmc0=sd_emmc_c(eMMC)、mmc1=sd_emmc_b(SD)、mmc2=sd_emmc_a(SDIO) | 与厂家 BSP alias 对齐 |
@@ -192,5 +192,7 @@ ifconfig wlan0                     # 或 nmcli dev
 6. **R110=100Ω 时基极电流约 26mA**（(3.3-0.7)/100）。对GPIO 偏大（多数 SoC 额定 8mA，部分 26mA）。
    若实测 GPIO 驱动能力不足或边沿畸变，可考虑**加大到 220Ω~470Ω**（LED 电流仅 ~0.3mA，β 要求不高）。
 7. **RGMII 延时不要试图用 PCB 走线补偿**：实测两组均等长（散布≈1ps），而 2ns 需约13000mil 走线。
-   ⚠ 本板最终方案是 `phy-mode="rgmii"` + MAC 侧延时（`amlogic,tx-delay-ns=2` /
-   `rx-internal-delay-ps=2000`），见 dts 以太网段注释；此处历史结论已作废。
+   ⚠ 本板最终方案是 `phy-mode="rgmii"` + `amlogic,tx-delay-ns=2`，
+   **不写 `rx-internal-delay-ps`**（2026-11-09 真机实测：0 才通 1Gbps，
+   2000 → 100% CRC 错，3000 → 连帧都同步不了），见 dts 以太网段注释；
+   此处历史结论已作废。
