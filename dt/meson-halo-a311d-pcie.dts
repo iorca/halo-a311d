@@ -853,10 +853,27 @@
 	phy-supply = <&vcc_5v>;
 };
 
+/* ⚠ 必须是 host，不能抄 VIM3 的 peripheral。
+ * meson-g12-common.dtsi 里 &usb(usb@ffe09000) = amlogic,meson-g12a-usb-ctrl glue，
+ * 两个子控制器：dwc2(usb@ff400000, dr_mode=peripheral, OTG/device) 与
+ * dwc3(usb@ff500000, dr_mode=host, USB3 host)。
+ * glue 的 dr_mode 决定 OTG PHY(USB2_OTG_PHY=1 → usb2_phy1) 的角色：
+ * peripheral → dwc3-meson-g12a.c 的 probe() 把 otg_phy_mode 设成
+ * PHY_MODE_USB_DEVICE → set_phy_mode() 清掉 U2P_R0_HOST_DEVICE(bit0)，
+ * 并置 USB_R0_U2D_ACT / USB_R4_P21_SLEEP_M0 → OTG 口进 device 模式，
+ * 插 U 盘/Hub 完全没有 host 枚举（这就是两条 USB 路径都不响应的根因）。
+ * host → bit0 置 1，usb2_phy0 本来就被强制 host，usb3_pcie_phy 也归 dwc3，
+ * OTG 口 + SL6341D Hub + 四个下行口全部走 xHCI。
+ * ⚠ 不要照抄 OES 板的 phys = <&usb2_phy0>, <&usb2_phy1>：那块板把
+ * usb3_pcie_phy 让给了 PCIe。本板 FUSB340 SEL=LOW 走 USB3.0，
+ * 必须保留 dtsi 默认的三条 phys（含 usb3_pcie_phy PHY_TYPE_USB3）。
+ * ⚠ OTG 烧录固件走 BootROM / 厂商 U-Boot 的 USB Device 协议，
+ * 与 Linux 的 dr_mode 无关，改成 host 不影响烧录。
+ */
 /* PCIe 模式下USB3.0 关闭（PHY 已归 pcie，见 usb3_pcie_phy 说明） */
 &usb {
 	status = "disabled";
-	dr_mode = "peripheral";
+	dr_mode = "host";
 };
 
 /* PCIe：默认禁用（FUSB340 SEL=0 → 物理通路在 USB3.0侧）
