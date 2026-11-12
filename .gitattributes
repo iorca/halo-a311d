@@ -45,3 +45,8 @@ fip/*.py      text eol=lf
 #   `git check-attr filter -- fip-blob` 可以验证这一点。
 #   缺空格的后果是"看起来配了 LFS，实际没配" —— 极隐蔽。
 fip-blob/** filter=lfs diff=lfs merge=lfs -text
+
+# fip-blob 下的说明文档（README.md 等）保持纯文本：
+# 上面那条 LFS 规则会把 .md 也转成指针，GitHub 网页上只剩 3 行
+# `version / oid / size`，文档直接不可读。后出现的规则覆盖前一条。
+fip-blob/**/*.md text eol=lf -filter -diff -merge
