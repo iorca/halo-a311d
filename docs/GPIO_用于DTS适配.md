@@ -10,7 +10,9 @@
 - pin 名沿用 Amlogic 方案，直接写 `GPIOA_0` / `GPIOH_8` / `GPIOX_19` / `GPIOAO_11`
 - 标准写法：`gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;`（有效电平按外设定）
 - 本表只给**硬件连接**；`GPIO_ACTIVE_*`、`input-enable` / `output-high` / `bias-pull-up` 等按外设需求在节点里填
-- `GPIOA_5` 在本网表中未出现（未布线或保留，DTS 里不要引用）
+- `GPIOA_5` 在底板网表中未出现，但**主人 2026-11-10 确认**：`BT_WAKE_HOST_3V3` → CN2-42 → GPIOA_5
+  （AP6256 pin7 `BT_HOST_WAKE` 经 U39/1N5819 二极管到该脚，模块→HOST 方向）。
+  即该脚在**核心板侧**布线，底板网表看不到。可按需用作 `host-wakeup-gpios`（先确认二极管极性）。
 
 ---
 

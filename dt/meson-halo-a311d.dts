@@ -257,7 +257,7 @@
 	/* ================================================================
 	 * SPI 屏（FPC5 座）
 	 * ================================================================
-	 * SPI_B: MOSI=GPIOH_4, MISO=GPIOH_5, CS=GPIOH_7, SCLK=GPIOH_6
+	 * SPI_B: MOSI=GPIOH_4, MISO=GPIOH_5, SCLK=GPIOH_7, CS=GPIOH_6
 	 * 屏控制: RST=GPIOA_3, RS=GPIOA_4（普通 GPIO，非 SPI 复用）
 	 * 背光:   GPIOH_8 → Q15(MMBT3906 **PNP** 高边) → SPI_LEDA
 	 *          PNP 拉低导通 → GPIO_ACTIVE_LOW
@@ -618,29 +618,42 @@
 	num-cs = <1>;
 	cs-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_LOW>;	/* SPI_B_SS0 = GPIOH_6 */
 
-	/* ⚠⚠ 这里**不能**写 max-frequency —— 内核根本不读它！
-	 *   SPI 子系统只读**从设备**节点上的 `spi-max-frequency`
-	 *   （drivers/spi/spi.c:2456  of_property_read_u32(nc, "spi-max-frequency", ...)），
-	 *   控制器节点上的 max-frequency 没有任何驱动消费。
-	 *   之前写的 `max-frequency = <24000000>`（想限制到 24MHz）**从未生效**。
+	/* ⚠⚠ 控制器节点上的 `max-frequency` 内核**不读**：
+	 *   SPI 子系统只读从设备节点的 `spi-max-frequency`
+	 *   （drivers/spi/spi.c:2456）。限频必须写在下面的 display@0 里。
 	 *
-	 *   实际限频由驱动决定：drivers/spi/spi-meson-spicc.c
-	 *     meson_spicc_g12a_data.max_speed_hz = 166666666   (166 MHz)
-	 *   → 屏在 SPI 总线上最高可跑到 166MHz。
+	 * ST7735S（FPC5 座）—— 2026-11-10 真机验证通过：
+	 *   fb_st7735r(staging/fbtft) 自动加载、/dev/fb2 出现、
+	 *   "graphics fb2: fb_st7735r frame buffer, 128x160, ..., spi0.0 at 8 MHz"、
+	 *   SPI statistics messages/bytes 持续增长且 errors=0。
+	 *   v6.18 fbtft 只有 fb_st7735r.c，没有单独 st7735s；
+	 *   ST7735S 与 R 命令集兼容，共用同一份 init_sequence。
 	 *
-	 *   本板 SPI_B 上接的是**裸屏**（无 Linux 驱动、无从设备节点，
-	 *   见下方「屏控制 GPIO 说明」），没有地方挂 spi-max-frequency。
-	 *   要限制到 24MHz，需要给屏写一个 spi 从设备节点并在其中声明
-	 *   spi-max-frequency = <24000000>；等屏驱动到位时再补。
-	 *
-	 *   屏初始化序列通常在屏驱动中，不在 DTS */
+	 * GPIO 极性依据 v6.18 drivers/staging/fbtft/fbtft-core.c：
+	 *   fbtft_reset(): gpiod_set_value(reset,1) 断言复位、随后置 0 释放
+	 *     → 屏 RST 低有效 → reset-gpios 必须 GPIO_ACTIVE_LOW；
+	 *       若写成 ACTIVE_HIGH，驱动结束后会把 RST 永久拉低，屏永远不复位。
+	 *   fbtft_backlight_update_status(): 亮时 set logical 1；
+	 *     背光 Q15 是 PNP 高边、拉低导通 → led-gpios 必须 GPIO_ACTIVE_LOW。
+	 *   dc 高=data → GPIO_ACTIVE_HIGH。
+	 *   buswidth=8 必填，缺省 fbtft_probe_common 报 "buswidth is not set"。
+	 *   8MHz：ST7735S SCLK 最小周期约 66ns(≈15MHz)，留裕量；可再往上试。
+	 */
+	display@0 {
+		compatible = "sitronix,st7735r";
+		reg = <0>;
+		spi-max-frequency = <8000000>;
+		reset-gpios = <&gpio GPIOA_3 GPIO_ACTIVE_LOW>;
+		dc-gpios = <&gpio GPIOA_4 GPIO_ACTIVE_HIGH>;
+		led-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
+		buswidth = <8>;
+	};
 };
 
-/* 屏控制 GPIO 说明（无对应 Linux 驱动消费，故不单独声明节点）
- *   屏复位RST   = GPIOA_3  (普通 GPIO 输出，屏手册定极性)
- *   寄存器选择RS = GPIOA_4  (普通 GPIO 输出)
- *   背光 EN     = GPIOH_8  (Q15 MMBT3906 PNP 高边 → 拉低导通 → 亮)
- *   → 背光随下面 leds 节点的 run_led 一并管理；RST/RS 由屏驱动或用户态控制。
+/* 屏控制 GPIO（由上面的 display@0 交给 fbtft 驱动消费，不再单独声明节点）
+ *   FPC5.3 RST = GPIOA_3   FPC5.4 RS/DC = GPIOA_4
+ *   FPC5.1 LEDA 背光 = GPIOH_8 → Q15(MMBT3906 PNP 高边) → 拉低导通 = 亮
+ *   ⚠ run_led 是系统心跳灯(GPIOAO_10)，与背光无关，别混用。
  */
 
 /* ==================================================================
@@ -992,12 +1005,22 @@
 	pinctrl-names = "default";
 	uart-has-rtscts;
 
-	/* AP6256 蓝牙：BT_EN 经 R147(4.7k)+R145(3.3k) → CN2-58 */
+	/* AP6256 蓝牙：BT_REG_ON(U40.34) 经 R147(47k→GND) + R145(33k)
+	 * 由 GPIOA_13(CN2-58 / BT_EN_3V3) 驱动：3.3 × 47/(33+47) ≈ 1.94V。
+	 * ⚠ 不写 shutdown-gpios 时 GPIOA_13 被 47k 下拉，BT_REG_ON = 0，
+	 *   BT 永远在复位 → `hci0: BCM: Reset failed (-110)`。
+	 * hci_bcm.c:1050 bcm_gpio_set_shutdown(dev, powered) 里
+	 *   gpiod_set_value(shutdown, powered)，powered=1 即逻辑 1 = active，
+	 *   所以这里必须 GPIO_ACTIVE_HIGH（物理高 = BT_REG_ON 有效）。
+	 * ⚠ GPIOA_13 在本板 dts 未被其它功能占用；真机 debugfs gpio 中
+	 *   该线（periphs 偏移 62）未出现在已 request 列表里。
+	 */
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
 		max-speed = <2000000>;
 		clocks = <&wifi32k>;
 		clock-names = "lpo";
+		shutdown-gpios = <&gpio GPIOA_13 GPIO_ACTIVE_HIGH>;
 	};
 };
 

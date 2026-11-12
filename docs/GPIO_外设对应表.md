@@ -29,7 +29,8 @@
 | GPIOA_11 | GPIOA_11 | CN254 | 核心板 BTB |
 | GPIOA_12 | GPIOA_12 | CN256 | 核心板 BTB |
 
-> GPIOA_5 在本网表中未出现（可能未布线或保留）。
+> GPIOA_5 在底板网表中未出现，但主人 2026-11-10 确认它接 `BT_WAKE_HOST_3V3`(CN2-42)，
+> 来自 AP6256 pin7 `BT_HOST_WAKE` 经 U39(1N5819) 二极管；属于核心板侧布线。
 
 ## 2. GPIOC 组
 
