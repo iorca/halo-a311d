@@ -29,6 +29,9 @@ dt-validate 直接跑会报两类噪音：
 所以：跑 dt-validate，把它的 JSON 输出交给本脚本判定 ——
 只对**本板自己写的节点**（根节点的子节点）报错。
 
+另有一类精准豁免：fbtft（staging）SPI 屏节点没有上游 dt-binding，
+详见 STAGING_NODE_RE / is_staging_false_positive() 的注释。
+
 判定规则
 --------
 · 诊断级别为 error
@@ -49,6 +52,7 @@ dt-validate 直接跑会报两类噪音：
 
 import io
 import json
+import re
 import sys
 
 # 豁免：根节点自身的 compatible 匹配失败。
@@ -67,6 +71,49 @@ EXEMPT_NODES = ("/",)
 # 属于"没 schema 可校验"，不是"校验不通过"。
 EXEMPT_TYPES = ("unmatched",)
 
+# ---- 豁免：fbtft（staging）SPI 屏节点 -------------------------------
+# v6.18 drivers/staging/fbtft/ 里的 fb_st7735r 驱动**没有上游 dt-binding**，
+# 而 compatible 复用了 DRM panel 驱动的 "sitronix,st7735r"。dt-validate 会拿
+# 那份 DRM panel schema / spi-peripheral-props 去套，必然误报两类：
+#   1) "['sitronix,st7735r'] is not valid under any of the given schemas"
+#      —— 没有 staging 驱动的 schema 可校验；
+#   2) "'buswidth', 'led-gpios' do not match any of the regexes ..."
+#      —— fbtft 私有属性被 SPI 子节点的 additionalProperties 拒绝。
+# 这些属性是 fbtft-core.c 定死读的（fbtft_probe_common / fbtft_properties_read），
+# 真机已验证 PASS，不能改 DTS。所以在这里按「节点 + 消息模式 + 属性白名单」
+# 精准豁免，其余 error 一律照常判失败。
+#
+# ⚠ 白名单只列 fbtft 真正消费的属性。若以后在这个节点写了拼写错误的属性
+#   （比如 buswdith），它不进白名单 → 不豁免 → CI 照样红。
+STAGING_NODE_RE = re.compile(r"/display@0$")
+FBTFT_PRIVATE_PROPS = frozenset((
+    "buswidth", "led-gpios", "reset-gpios", "dc-gpios", "rotate", "bgr",
+    "width", "height", "fps", "txbuflen", "debug", "init", "gamma",
+    "spi-max-frequency",
+))
+
+
+def is_staging_false_positive(d):
+    """只豁免 fbtft 节点上「无 schema」与「私有属性被拒」两类误报"""
+    node = d.get("node") or ""
+    if not STAGING_NODE_RE.search(node):
+        return False
+    msg = (d.get("message") or "").split("\n")[0]
+
+    # 1) compatible 没匹配到任何可用 schema
+    if "is not valid under any of the given schemas" in msg:
+        path = [str(x) for x in (d.get("property_path") or [])]
+        return any("compatible" in x for x in path)
+
+    # 2) fbtft 私有属性被 SPI 子节点 additionalProperties 拒绝
+    if "do not match any of the regexes" in msg:
+        quoted = re.findall(r"'([^']+)'", msg)
+        # 过滤掉消息末尾那个正则本身（'^pinctrl-[0-9]+$' 之类），只留属性名
+        props = [q for q in quoted if re.fullmatch(r"[a-z0-9][a-z0-9_-]*", q)]
+        return bool(props) and all(x in FBTFT_PRIVATE_PROPS for x in props)
+
+    return False
+
 
 def collect(diagnostics, exempt_nodes):
     """挑出需要关注的 error 级诊断"""
@@ -78,6 +125,8 @@ def collect(diagnostics, exempt_nodes):
             continue
         node = d.get("node")
         if node in exempt_nodes:
+            continue
+        if is_staging_false_positive(d):
             continue
         bad.append(d)
     return bad
