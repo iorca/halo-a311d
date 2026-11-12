@@ -448,7 +448,7 @@ USB xHCI 双 bus + USB2 大容量存储枚举、SD 卡座、
 
 ---
 
-## 10. DDR / VIM3 FIP 试稳（2026-11-11，未完结）
+## 10. DDR / VIM3 FIP 试稳（2026-11-11 起，2026-11-12 收束）
 
 - 荣品原 FIP：DDR **1392 MHz**（LPDDR4 模式，VDDQ 1.1V）。颗粒
   FLXC2004G-N1（FORESEE/江波龙）LPDDR4 模式封顶 1866 MHz/3733 MT/s，
@@ -471,5 +471,25 @@ USB xHCI 双 bus + USB2 大容量存储枚举、SD 卡座、
   本地 `build-20261111-c25f9263` 是 **main 分支正式镜像**（荣品 FIP / 1392 MHz），
   **不是** DDR 验证镜像。
 - ⚠ gxlimg 分支 `fip-blob/` 当前是**临时 VIM3 FIP** 状态（`492ce29` 换 blob、
-  `12bc4d2` 剥 SD 头），荣品原 blob 已改名 `.bak` 保留在目录里，
-  **验证结束需恢复**，否则后续镜像会一直带 VIM3 FIP。
+  `12bc4d2` 剥 SD 头），荣品原 blob 已改名 `.bak` 保留在目录里。
+
+### 状态（2026-11-12 收束）
+主人已叫停 memtester（跑到 Loop 1 前 7 项全 ok、零 FAILURE，但未跑完）。
+**结论：1584 MHz 能训练、能启动到 login，但稳定性没有完整验证，不能当正式配置发布。**
+VIM3 FIP 没有更高档位可切，1866 MHz 需重训 DDR 表 + VDDQ 回 1.1V，暂不继续。
+
+仓库状态已整理：
+- `main` 侧多余的 `fip-blob/halo-a311d/fip-vendor-mainline-uboot.bin` **已删除**
+  （main 用 LibreELEC 方案，本来就不该带厂商 blob；这是 dtb-check 判红的唯一原因）。
+- `gxlimg` 侧的 VIM3 FIP 试验状态**原样保留**（`vim3-fip-0.17.3.bin` +
+  荣品原 blob `.bak`），主人未决定恢复前不动它。
+- `check-branch-sync.py` 回到 RC=0；dtb-check 转绿。
+
+**恢复荣品原 FIP 的方法（待主人决定后执行）**：
+```bash
+git mv fip-blob/halo-a311d/fip-vendor-mainline-uboot.bin.bak \
+       fip-blob/halo-a311d/fip-vendor-mainline-uboot.bin
+git rm fip-blob/halo-a311d/vim3-fip-0.17.3.bin
+# 硬件：VDDQ 必须从 0.61V 调回 1.1V（LPDDR4 模式），否则训练会挂
+# 然后两分支一次 push
+```
