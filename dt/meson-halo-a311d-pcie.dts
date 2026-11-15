@@ -1,48 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * MAIN_V0.3 — Althea A311D board 【PCIe 模式变体】
- *
- * 本文件是 dt/meson-halo-a311d.dts 的 PCIe 变体，差异：
- *   &pcie status="okay" + reset-gpios(GPIOA_0 PERST#)
- *   &usb  status="disabled"
- *
- * ⚠ 切换方式：**不是 extlinux**。本板 U-Boot 在 boot 前读 GPIOA_2 的
- *   strap 电平，据此 setenv fdtfile 选对应 dtb（冷切换）。
- *   镜像里的 dtb 路径形如：
- *     dtb/amlogic/meson-halo-a311d.dtb        ← USB3.0 变体
- *     dtb/amlogic/meson-halo-a311d-pcie.dtb   ← 本文件（PCIe 变体）
- *   详见 docs/冷切换使用说明.md 与 README「软件链路」一节。
- *
- * 派生自 Khadas VIM3 (meson-g12b-a311d-khadas-vim3.dts)
- * 骨架来源: mainline kernel 6.18.52
- *          arch/arm64/boot/dts/amlogic/meson-khadas-vim3.dtsi
- *
- * 本板与 VIM3 的差异:
- *   - 无on-board MCU（VIM3 用 khadas_mcu@18 + tca6408@20 做 GPIO扩展）→ 已删除
- *   - 无音频（TDM 声卡全删）→ 已删除
- *   - FUSB340TMX 切换改由 GPIOA_2 直控 SEL（VIM3 靠 MCU）
- *   - 以太网 PHY 地址 = 1（strap 实测，非 VIM3 的 0）
- *   - 新增 SPI 点屏（GPIOA_3/GPIOA_4/GPIOH_4~8）
- *   - 新增 SHT40 温湿度（U42，地址 0x44，走 &i2c3）
- *     （U45 虽贴装但 I2C 线网表悬空，未启用）
- *   - 摄像头未使用 → CSI/ISP 关闭
- *
- * 数据来源: MAIN_V0.3 全工程网表实测（495 元件/ 393 网络）
- *          PCB 等长网络组实测（TX散布6.5mil / RX 散布 7.3mil）
- *
- * ⚠ 运行时热切换限制（详见 FUSB340 说明段）
- *
- *   &pcie 与 &usb 共用 usb3_pcie_phy（meson-g12-common.dtsi:164/2510），
- *   DTS 是编译期静态描述，PHY 归谁在编译时就定死。
- *   → 当前配置：默认只开 USB3.0（&usb okay，&pcie disabled），
- *     与 FUSB340 SEL 默认 LOW 一致。
- *   → 运行期 echo GPIO 只能改 FUSB340 物理通路，无法同步 SoC 内部 PHY 归属。
- *   → 要切 PCIe 需重编 DTB（方案 A，推荐）或实测 unbind/bind（方案 C，不保证）。
- *
- * ✅ 已确认可用：CPU 调压(VIM3 骨架) / 以太网(rgmii+tx-delay+rx-delay) /
- *    SDIO / SD / eMMC / HDMI / CEC / USB / 运行灯 / 红外GPIO /
- *    **SPI 硬件 SPI1(GPIOH_4~7, CS=GPIOH_6/SCLK=GPIOH_7)** /
- *    SPI 屏 RST-RS-背光 / **SHT40(U42, i2c3)**
+ * Althea A311D (MAIN_V0.3) — PCIe 变体
+ * 派生自 Khadas VIM3，骨架为 mainline 6.18。
+ * 另一变体：meson-halo-a311d.dts（&usb okay / &pcie disabled）。
+ * 两者只差 FUSB340 对 usb3_pcie_phy 的归属，见 docs/冷切换使用说明.md。
  */
 
 /dts-v1/;
@@ -53,9 +14,7 @@
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/amlogic,meson-g12a-gpio-intc.h>
-/* ⚠⚠ 只能 include a311d 这一份，**不要**再 include meson-g12b-s922x.dtsi。
- * 详见 meson-halo-a311d.dts 里同段注释（同名 opp-table 会被 dtc 合并成混搭表）。
- */
+/* 只 include a311d 一份：s922x 的同名 opp-table 会被 dtc 合并成混搭表 */
 #include "meson-g12b-a311d.dtsi"
 
 / {
@@ -65,12 +24,7 @@
 	aliases {
 		serial0 = &uart_AO;
 		ethernet0 = &ethmac;
-		/* ⚠ 本板**没有** RTC 芯片（网表 495 元件里查无 8563/3231/DS1307 等），
-		 *   原先指向厂商 hym8563 的 rtc@51 节点已删除。
-		 *   改指 SoC 内置的虚拟 RTC（vrtc: rtc@a8，compatible="amlogic,meson-vrtc"，
-		 *   驱动 drivers/rtc/rtc-meson-vrtc.c，上游 g12-common.dtsi 里默认 okay）。
-		 *   上游 VIM3 用 rtc0=&rtc(hym8563) + rtc1=&vrtc，本板只有 vrtc 一个。
-		 */
+		/* 无外置 RTC，用 SoC vrtc */
 		rtc0 = &vrtc;
 	};
 
@@ -78,18 +32,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	/* ================================================================
-	 * 电源（VIM3 骨架，pwm-regulator 调压）
-	 * ================================================================
-	 * ⚠ 关于 VDDCPU_B_EN(TEST_N)：
-	 *   本板未实现 TEST_N 控制。厂商 pro-a311d DTS 与mainline VIM3 均为
-	 *   regulator-always-on（VIM3 原注释: "FIXME: actually controlled by
-	 *   VDDCPU_B_EN"）。A311D 无 PMIC，CPU 供电靠 PWM 占空比调压，
-	 *   TEST_N 仅作硬件上电闸门，不需DTS 控制。
-	 *   本板网表 VDDCPU_B_EN(CN3-73) 链路 R6/R12/Q2/U4 全部 bom=no（未使用）。
-	 */
-
-	/* 大核 A73 供电：MP8756GD，用 pwm_ab 控制器的 **A 通道** */
+	/* 大核 A73 供电：MP8756GD，pwm_ab 通道 A */
 	vddcpu_a: regulator-vddcpu-a {
 		compatible = "pwm-regulator";
 		regulator-name = "VDDCPU_A";
@@ -97,16 +40,6 @@
 		regulator-max-microvolt = <1050000>;
 
 		pwm-supply = <&dc_in>;
-		/*
-		 * pwm_ab = EE 域 PWM 控制器(pwm@1b000)，0=A、1=B。
-		 * 通道 0(A) 可选脚含 GPIOX_6；
-		 * 本板 VDDCPU_A_PWM = GPIOE_2 (厂商 pinmux pwm_a_e2 →
-		 *   function "pwm_a_gpioe"，规格书 Table 3-10 GPIOE_2 组)。
-		 *
-		 * ⚠ GPIOE_2 是**核心板**上的引脚（SoM 侧走线到 VDDCPU_A 的
-		 *   PWM 电路），底板网表（netlist-dump/）里查不到它是正常的 ——
-		 *   那份网表只覆盖底板。查这类脚要拿核心板原理图。
-		 */
 		pwms = <&pwm_ab 0 1250 0>;
 		pwm-dutycycle-range = <100 0>;
 
@@ -114,7 +47,7 @@
 		regulator-always-on;
 	};
 
-	/* 小核 A53 供电：SY8030DEC，用 PWM_AO_C/D 控制器的 **D 通道** */
+	/* 小核 A53 供电：SY8030DEC，pwm_AO_cd 通道 D */
 	vddcpu_b: regulator-vddcpu-b {
 		compatible = "pwm-regulator";
 		regulator-name = "VDDCPU_B";
@@ -122,17 +55,6 @@
 		regulator-max-microvolt = <1050000>;
 
 		pwm-supply = <&vsys_3v3>;
-		/*
-		 * pwm_AO_cd = AO 域 PWM 控制器(pwm@2000)，非引脚名。
-		 * Amlogic PWM 两两配对：AB / CD / EF。
-		 * 此控制器 0=A、1=D。
-		 * 通道 1(D) 可选脚: GPIOAO_5 / GPIOAO_10 / GPIOE_1
-		 * 本板 VDDCPU_B_PWM = GPIOE_1 (规格书 Table 3-10
-		 *   GPIOE_1 Func3 = PWMAO_D)，故用 pwm_ao_d_e_pins。
-		 *
-		 * ⚠ GPIOE_1 同vddcpu_a 的 GPIOE_2：都是**核心板**引脚，
-		 *   底板网表查不到属正常，查这类脚要拿核心板原理图。
-		 */
 		pwms = <&pwm_AO_cd 1 1250 0>;
 		pwm-dutycycle-range = <100 0>;
 
@@ -194,21 +116,8 @@
 		regulator-always-on;
 	};
 
-	/* ================================================================
-	 * 运行指示灯 LED4 —— GPIOAO_10
-	 * ================================================================
-	 * 硬件: A_3V3 → R108(4.7k) → LED4 → Q8(PMBS3904, **NPN**) → GND
-	 *      Q8 BASE ← R110(100Ω) ← GPIOAO_10
-	 * NPN 低边开关 → 高电平点亮 → GPIO_ACTIVE_HIGH
-	 * AO 域 can_sleep=false → 内核 heartbeat 可在 atomic 上下文工作
-	 *
-	 * ⚠⚠ 属性名必须是 **linux,default-trigger**（带 `linux,` 前缀），
-	 *   默认状态属性是 **default-state**（不是 state）。
-	 *   依据：drivers/leds/led-class.c:504 读 "linux,default-trigger"；
-	 *         drivers/leds/led-core.c:607 读 "default-state"；
-	 *         plain "default-trigger" 与 "state" 内核均无人读取。
-	 *   详见 dt/meson-halo-a311d.dts 同一处的完整注释。
-	 */
+	/* LED4: NPN 低边开关，高电平点亮 → GPIO_ACTIVE_HIGH。
+	 * 属性名必须是 linux,default-trigger / default-state（旧名内核不读）。 */
 	leds {
 		compatible = "gpio-leds";
 
@@ -220,40 +129,10 @@
 		};
 	};
 
-	/* ------------------------------------------------------------
-	 * PCIe / M.2 控制脚（网表实测，见文件末尾 &pcie 段详注）
-	 * ------------------------------------------------------------
-	 * GPIOA_0  = PCIE_PERST     4.7k 上拉 A_3V3(R88) + 0Ω(R92) → CN2-30，低有效
-	 * GPIOA_1  = PCIE_PEWAKE    4.7k 上拉 A_3V3(R89) + 0Ω(R91) → CN2-32
-	 * GPIOC_7  = PCIE_CLKREQ_N  4.7k 下拉 GND(R90)  + 0Ω(R93) → CN2-28，低有效
-	 * GPIOA_2  = FUSB340 SEL    R86(0Ω) 到 U28.6，R85/R87 4.7k 下拉 → 默认 USB3.0
-	 *
-	 * ⚠⚠ FUSB340_SEL 的 hog **不能**放在根节点（见文件末尾 &gpio 段）。
-	 *   下面只留注释说明，实体节点见 &gpio { fusb340-sel-hog { ... } }。
-	 */
-
-	/* ================================================================
-	 * 红外接收 —— U38 IRM-V838M3-C/TR1 → GPIOAO_5 (AO 域)
-	 * ================================================================
-	 * 链路: U38.3 → R116/R115 → CN3-75 (IR_IN) → GPIOAO_5
-	 * 复用名 IR_REMOTE_IN / PWMAO_D（规格书）
-	 *
-	 * ⚠ 本板遥控器键值表未知，暂用 Linux 自带 rc-khadas。
-	 *   若遥控器型号不同，需换对应 rc-map-name 或自定义 keymap。
-	 */
 	ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_LOW>;
 	};
-
-	/* ================================================================
-	 * SPI 屏（FPC5 座）
-	 * ================================================================
-	 * SPI_B: MOSI=GPIOH_4, MISO=GPIOH_5, SCLK=GPIOH_7, CS=GPIOH_6
-	 * 屏控制: RST=GPIOA_3, RS=GPIOA_4（普通 GPIO，非 SPI 复用）
-	 * 背光:   GPIOH_8 → Q15(MMBT3906 **PNP** 高边) → SPI_LEDA
-	 *          PNP 拉低导通 → GPIO_ACTIVE_LOW
-	 */
 
 	/* eMMC 上电时序 */
 	emmc_pwrseq: emmc-pwrseq {
@@ -267,6 +146,8 @@
 		reset-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_LOW>;
 		clocks = <&wifi32k>;
 		clock-names = "ext_clock";
+		/* WL_REG_ON 释放后等待 AP6256 上电稳定 */
+		post-power-on-delay-ms = <100>;
 	};
 
 	/* 32.768kHz 时钟（AP6256 需求） */
@@ -277,25 +158,8 @@
 		pwms = <&pwm_ef 0 30518 0>; /* PWM_E at 32.768KHz */
 	};
 
-	/* ------------------------------------------------------------
-	 * 散热风扇 PWM —— GPIOAO_11 = pwm_AO_ab 通道0(A)
-	 * ------------------------------------------------------------
-	 * 选 pwm_AO_ab(A) 而非 pwm_AO_cd(C) 的原因：
-	 *   风扇原标注在 GPIOAO_6（= pwm_ao_c_6，属 pwm_AO_cd 的 C 通道），
-	 *   但 pwm_AO_cd 的 **D 通道已被 vddcpu_b（小核A53 供电）占用**。
-	 *   meson pwm 驱动（drivers/pwm/pwm-meson.c）**不读 pinctrl**，
-	 *   引脚复用由 pinctrl 驱动按控制器节点的 `pinctrl-0` 统一应用，
-	 *   而 `pinctrl-0` 只能有一组 → 同一控制器无法给两个通道配不同引脚。
-	 *   （上游 10 个用 pwm_AO_* 的板，无一在同一控制器上用两个通道。）
-	 *   GPIOAO_11 在 pwm_AO_ab 上，且该控制器本板完全空闲。
-	 *
-	 * ⚠ TODO：风扇驱动电路（MOSFET + 续流二极管）layout 尚未完成。
-	 *   网表现状：`PWM_FAN` 网络只连 U9.1（一颗 1N5819WT 二极管阴极），
-	 *   U9 阳极接 GPIOAO_6，全网无风扇连接器、无 MOSFET。
-	 *   → 本节点只是把 PWM 通道准备好；**风扇不会转**，
-	 *     /sys/class/pwm/pwmchipN 会出现但无实际负载。
-	 *   layout 定稿后需核对实际驱动电路接的是哪个脚，若非 GPIOAO_11 则改。
-	 */
+	/* 风扇 PWM：pwm_AO_cd 的 D 通道已被 vddcpu_b 占用，改用 pwm_AO_ab(A)/GPIOAO_11。
+	 * 驱动电路 layout 未完成，本节点仅预留通道，风扇不会转。 */
 	fan_pwm: fan-pwm {
 		compatible = "pwm-fan";
 		pwms = <&pwm_AO_ab 0 1250 0>;
@@ -312,36 +176,8 @@
 		};
 	};
 
-	/* ================================================================
-	 * SHT40 (U42) —— 温湿度传感器，地址 0x44
-	 * ================================================================
-	 * U42 @ TOUCH_I2C (GPIOA_14/A15, EE 域, A_3V3 供电)
-	 * U45 @ I2C_AO_S0 (AO 域, VDDIO_AO18 1.8V 供电)
-	 * ⚠ 不能挂到同一&i2c 下 → 地址冲突
-	 */
-
-	/* ================================================================
-	 * 按键 —— 全部非 GPIO 直连，底板不声明
-	 * ================================================================
-	 * SW2 → PWR_RST(CN3-35)     硬复位，不进 DTS
-	 * SW3 → EMMC_KEY(CN3-33)    eMMC 复位，不进 DTS
-	 * SW4 → PWR_KEY_DET(CN3-43) 电源/唤醒键（核心板侧处理）
-	 * SW5 → ADC_KEY(CN3-55)     bom=no 未贴；SARADC_CH0/CH3 悬空
-	 * 所有串阻均为 **100Ω**（非 1k）
-	 * → 无 adc-keys、无 gpio-keys
-	 */
-
-	/* ================================================================
-	 * 摄像头未使用 → 全部屏蔽
-	 * ================================================================
-	 * MIPI-CSI(FPC2) / CAMERA_RST / CM_RST / CM_PWRDN / I2C2_*_CAM 均不引用
-	 * FPC3 仅保留 MIPI-DSI 显示通路
-	 */
 };
 
-/* ==================================================================
- * CPU 频率/电压绑定（VIM3 骨架）
- * ================================================================== */
 &cpu0 {
 	cpu-supply = <&vddcpu_b>;      /* A53 小核 */
 	operating-points-v2 = <&cpu_opp_table_0>;
@@ -392,48 +228,16 @@
 	status = "okay";
 };
 
-/* pwm_AO_ab 通道0(A) → GPIOAO_11 = 散热风扇 PWM（详见根节点 fan_pwm 段） */
+/* pwm_AO_ab 通道0(A) → GPIOAO_11 = 散热风扇 PWM */
 &pwm_AO_ab {
 	pinctrl-0 = <&pwm_ao_a_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };
 
-/* ==================================================================
- * 以太网 —— RGMII 千兆 + YT8531H-CA
- * ==================================================================
- * PHY : U23 = YT8531H-CA（裕太微 Motorcomm，网表实测）
- *       Pin-to-Pin 兼容 RTL8211F，两者可互换；本板实际贴装 YT8531H-CA
- *       驱动：mainline CONFIG_MOTORCOMM_PHY（drivers/net/phy/motorcomm.c）
- *       PHY_ID_YT8531 = 0x4f51e91b，上机以 dmesg 实读为准
- * 地址: strap 实测 = 3'b001 = 1（R78→A_3V3, R79/R80→GND）
- *       ⚠ VIM3 用 reg=<0>，本板必须改为 1
- *
- * ⚠⚠⚠ RGMII 延时 —— **两端都不加 delay**（2026-11-09 真机实测，1Gbps 跑通）
- *
- *   实测（R70 已摘除、1Gbps、ping 8.8.8.8 通、crc_error=0）：
- *     MAC rx-internal-delay-ps =    0 → ✅ framecount↑ / crc=0 / DHCP 拿到地址 / 外网通
- *                             2000 → ❌ 帧能进但 100% CRC 错（RX packets=0）
- *                             3000 → ❌ 连帧都同步不了（framecount=0）
- *   → **绝不要写 rx-internal-delay-ps**（原先的 <2000> 是罪魁祸首）
- *
- *   为什么：A311D = amlogic,meson-g12a-dwmac → has_prg_eth1_rgmii_rx_delay=true
- *   → 该属性被写进 PRG_ETH1 的 CFG_RXCLK_DLY（0..3000ps、200ps 步进），
- *     给**输入 RX_CLK** 加延迟 = 把采样点往后推 → 采样点跑出窗口。
- *   见 drivers/net/ethernet/stmicro/stmmac/dwmac-meson8b.c
- *       meson8b_init_rgmii_delays()
- *
- *   PHY 侧 strap（底板 R62=RXDLY / R70=TXDLY）**两颗都不要贴**：
- *   - R70(TXDLY) 会给 MAC→PHY 方向再加 2ns，与 amlogic,tx-delay-ns 重复
- *   - R62(RXDLY) 同理会破坏 PHY→MAC 方向
- *   且 motorcomm.c 的 ytphy_rgmii_clk_delay_config() 在 phy-mode="rgmii" 下
- *   会把 PHY 0xA003 的 RX delay / GE TX delay 字段**清零**（覆盖 strap）。
- *
- * ⚠⚠ 也**不要**用 phy-mode="rgmii-id" / "rgmii-rxid"：
- *   rgmii-rxid 让 motorcomm 给 PHY 加 RX delay，但 Amlogic 平台驱动在
- *   同一 switch 的另一分支把 MAC 侧 cfg_rxclk_dly 清零 → 两个驱动互斥，
- *   软件没法同时给两侧加。实测 rgmii-rxid + PHY 1950ps → framecount=0。
- */
+/* YT8531H-CA @ MDIO addr 1（VIM3 是 0）。
+ * phy-mode="rgmii" + amlogic,tx-delay-ns=<2>；不要写 rx-internal-delay-ps，
+ * 不要用 rgmii-id/rgmii-rxid，底板 R62/R70 不贴（真机 1Gbps 验证）。 */
 &ethmac {
 	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
 	pinctrl-names = "default";
@@ -445,150 +249,26 @@
 
 &ext_mdio {
 	external_phy: ethernet-phy@1 {   /* ⚠ 非 VIM3 的 @0 */
-		/* 裕太微 YT8531H-CA；MDIO 读 ID 自动匹配 motorcomm 驱动 */
 		reg = <1>;
 		max-speed = <1000>;
 
-		/*
-		 * PHY 中断（RGMII_INT）:
-		 *   SoC GPIOZ_14 → CN3-4 → R59(0Ω) → U23.31 (PHY 的 INTR)
-		 *   低有效 → 下降沿；IRQID_GPIOZ_14 = 26
-		 */
+		/* RGMII_INT: GPIOZ_14，低有效 → 下降沿 */
 		interrupt-parent = <&gpio_intc>;
 		interrupts = <IRQID_GPIOZ_14 IRQ_TYPE_EDGE_FALLING>;
 
-		/*
-		 * PHY LED 输出（YT8531 EXT_0xA00C/0xA00D/0xA00E）
-		 *
-		 * ⚠ 本板的 LED 引脚与 CFG_* 复用：
-		 *   .32 = LED0/CFG_EXT  → 只接 R81(4.7k) 到 GND，**没接灯**
-		 *   .33 = LED1/CFG_LDO0 → R67(510Ω) → RJ1.11 → **绿灯**
-		 *   .34 = LED2/CFG_LDO1 → R66(510Ω) → RJ1.14 → **黄灯**
-		 *   strap 只在上电瞬间采样，之后引脚转为 LED 输出，
-		 *   行为完全由 LEDx_CFG 寄存器决定。
-		 *
-		 * ⚠ 出厂默认（datasheet Table 7）是「一盏灯管一档速率」：
-		 *   LED0 = 10M link，LED1 = 100M link，LED2 = 1000M link。
-		 *   → 本板只接了 LED1/LED2，1G 链路时点亮的是**黄灯**，
-		 *     绿灯（100M 灯）全程不亮 —— 这不是硬件故障，是出厂语义。
-		 *
-		 * 下面改成常规 RJ45 语义：
-		 *   绿灯 = 链路通（任意速率）常亮 + 收发活动闪烁
-		 *   黄灯 = 1000M 链路常亮 + 收发活动闪烁
-		 *
-		 * 位定义（datasheet Table 24/25/26，同 LED0 语义）:
-		 *   bit13 Led_act_blk_ind  有流量就闪（不管之前亮不亮）
-		 *   bit12 Led_fdx_on_en    全双工时常亮
-		 *   bit11 Led_hdx_on_en    半双工时常亮
-		 *   bit10 Led_txact_blk_en 发送活动闪烁
-		 *   bit9  Led_rxact_blk_en 接收活动闪烁
-		 *   bit6  Led_gt_on_en     1000Mbps 时常亮
-		 *   bit5  Led_ht_on_en     100Mbps 时常亮
-		 *   bit4  Led_bt_on_en     10Mbps 时常亮
-		 *
-		 * 绿灯 0x2670 = bit13|bit10|bit9|bit6|bit5|bit4
-		 * 黄灯 0x2640 = bit13|bit10|bit9|bit6
-		 *
-		 * ⚠ 需要内核侧的 motorcomm YT8531 LED 支持
-		 *   （patch/apply/meson64-6.18/，
-		 *    内核 6.18 的 motorcomm.c 尚无 YT8531 的 led_hw_* 回调，
-		 *    7.3+ 上游已自带）。
-		 */
+		/* LED1(绿)/LED2(黄) 与 CFG_LDO 复用；0x2670 = 任意速率链路 + 活动，
+		 * 0x2640 = 1000M 链路 + 活动。需 patch/apply/meson64-6.18 的 motorcomm LED 支持。 */
 		motorcomm,led1-config = <0x2670>;
 		motorcomm,led2-config = <0x2640>;
 	};
 };
 
-/*
- *⚠⚠⚠ FUSB340TMX —— PCIe / USB3.0 热切换：可行性结论 ⚠⚠⚠
- *
- * 【硬件】
- *   GPIOA_2 → CN2-36 → R86(0Ω) → FUSB340 .6(SEL)
- *   FUSB340 .7(OE) → GND = 恒使能（0 = Switches Enabled）
- *   R85/R87 = 4.7k 下拉 →上电默认 LOW
- *
- *   SEL=0 (LOW)  → SW1 → USB3.0   ← 默认
- *   SEL=1 (HIGH) → SW2 → PCIe
- *
- * 【为什么 DTS 不能"热切换"】
- *
- *   A311D 的 PCIe 与 USB3 共用**同一个 PHY**（usb3_pcie_phy, phy@46000），
- *   两者是同一 PHY 的两种模式：
- *     meson-g12-common.dtsi:164   &pcie  → phys = <&usb3_pcie_phy PHY_TYPE_PCIE>
- *     meson-g12-common.dtsi:2510&usb   → phys = <&usb3_pcie_phy PHY_TYPE_USB3>
- *
- *   DTS 是**编译期静态描述**，一旦编译进 dtb，PHY 归谁就固定了：
- *     - pcie 的 status="okay" + USB 去掉 → 编译后一直是 PCIe
- *     - USB 启用 + pcie status="disabled"      → 编译后一直是 USB3.0
- *
- *   运行中改 GPIO 只能改变 FUSB340 的**物理通路**，
- *   但 SoC 内部仍按dtb 里写死的那一侧在枚举设备 → 两边不一致，功能失效。
- *
- * 【三个可选方案】
- *
- *   方案 A（推荐，最稳）：**两个DTB，开机时选**
- *     编译 amlogic/meson-halo-a311d.dtb 与 amlogic/meson-halo-a311d-pcie.dtb
- *     切换时改 U-Boot 的 fdtfile（**不是 extlinux**，见 docs/冷切换使用说明.md），重启生效
- *     → 彻底规避 PHY 归属问题，无热插拔风险
- *
- *   方案 B：DTB 里 pcie 与 usb **同时 status="okay"**
- *     两者共用 PHY，驱动 probe 时会争抢 → 大概率一方失败
- *     ⚠ 不推荐，除非已实测
- *
- *   方案 C：运行期 unbind/bind（理论可行，复杂度高）
- *     1) echo 0000:00.0 > /sys/bus/pci/devices/0000:00.0/remove   # 摘 PCIe
- *     2) echo 1 > /sys/class/gpio/<n>/value                     # SEL=1
- *     3) 重新 bind pcie / usb 控制器
- *     → PHY 模式位需要正确复位，仅切 FUSB340 不一定够
- *     → 需实测验证，不保证
- *
- * 【当前 DTS 采用】
- *   默认只开USB3.0（&usb status="okay"），&pcie 保持 disabled，
- *   与用户要求"默认 LOW 使能 USB3.0"一致。
- *   GPIOA_2 已用 gpio-hog 导出（默认 LOW），可在sysfs 读写，
- *   为方案 C 预留可能，但**不保证运行期切换一定成功**。
- *
- *   切换 PCIe 需改 DT 后重编：
- *     &pcie  { status = "okay"; reset-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_LOW>; }
- *     &usb   { status = "disabled"; }
- *     并把 FUSB340 SEL 的默认电平改为 HIGH（或固件启动时拉高）
- */
-
-/* ==================================================================
- * SPI 屏（FPC5）—— 硬件 SPI1（GPIOH_4~7）
- * ==================================================================
- * 规格书 A311D Table 3-26 (GPIO_x Multi-Function Pin) 与
- * mainline drivers/pinctrl/meson/pinctrl-meson-g12a.c 双向确认：
- *
- *   规格书 bit 字段         GPIO      驱动 group    pinctrl function
- *   ----------------------  --------  ------------  ---------------
- *   bit31-24  SPI_B_MOSI    GPIOH_4   spi1_mosi     "spi1"
- *   bit23-16  SPI_B_SCLK    GPIOH_7   spi1_clk      "spi1"
- *   bit15-8   SPI_B_SS0     GPIOH_6   spi1_ss0      "spi1"
- *   bit7-0    SPI_B_MISO    GPIOH_5   spi1_miso     "spi1"
- *
- *   驱动原文 (pinctrl-meson-g12a.c):
- *     186: spi1_mosi_pins[] = { GPIOH_4 };
- *     187: spi1_miso_pins[] = { GPIOH_5 };
- *     188: spi1_ss0_pins[]  = { GPIOH_6 };
- *     189: spi1_clk_pins[]  = { GPIOH_7 };
- *
- *   注意命名差异：规格书称 SPI_B（SoC 第 2 个 SPI），
- *   mainline pinctrl 驱动称 spi1_*，SoC 节点名为 spi1。
- *
- *   CS = SPI_B_SS0 = GPIOH_6（不是 GPIOH_7）；SCLK = GPIOH_7。
- *
- * 屏控制 GPIO（与 SPI 控制器无关）：
- *   GPIOA_3 = SPI_RST(屏复位)   GPIOA_4 = SPI_RS(寄存器选择)
- *   GPIOH_8 = 背光 EN -> Q15(MMBT3906 PNP 高边) -> ACTIVE_LOW
- */
+/* FUSB340 SEL(GPIOA_2) 决定 usb3_pcie_phy 归 PCIe 还是 USB3.0。
+ * PHY 归属在 DTB 编译期定死，不能运行期热切换；冷切换由 U-Boot 按 strap
+ * 选 fdtfile，见 docs/冷切换使用说明.md。 */
 
 /* SPI_B 控制器 = SPI1，GPIOH_4~7 */
-/* spi1_* pinctrl group 归属 &spicc1 (spi@15000)，
- * 见 meson-g12-common.dtsi:1058 spicc1_pins
- *   groups = "spi1_mosi","spi1_miso","spi1_clk" / function = "spi1"
- * SS0 是独立节点 spicc1_ss0_pins (group "spi1_ss0")，需单独列进 pinctrl。
- */
+/* SS0 是独立 pinctrl 组，需单独列出 */
 &spicc1 {
 	status = "okay";
 
@@ -598,27 +278,8 @@
 	num-cs = <1>;
 	cs-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_LOW>;	/* SPI_B_SS0 = GPIOH_6 */
 
-	/* ⚠⚠ 控制器节点上的 `max-frequency` 内核**不读**：
-	 *   SPI 子系统只读从设备节点的 `spi-max-frequency`
-	 *   （drivers/spi/spi.c:2456）。限频必须写在下面的 display@0 里。
-	 *
-	 * ST7735S（FPC5 座）—— 2026-11-10 真机验证通过：
-	 *   fb_st7735r(staging/fbtft) 自动加载、/dev/fb2 出现、
-	 *   "graphics fb2: fb_st7735r frame buffer, 128x160, ..., spi0.0 at 8 MHz"、
-	 *   SPI statistics messages/bytes 持续增长且 errors=0。
-	 *   v6.18 fbtft 只有 fb_st7735r.c，没有单独 st7735s；
-	 *   ST7735S 与 R 命令集兼容，共用同一份 init_sequence。
-	 *
-	 * GPIO 极性依据 v6.18 drivers/staging/fbtft/fbtft-core.c：
-	 *   fbtft_reset(): gpiod_set_value(reset,1) 断言复位、随后置 0 释放
-	 *     → 屏 RST 低有效 → reset-gpios 必须 GPIO_ACTIVE_LOW；
-	 *       若写成 ACTIVE_HIGH，驱动结束后会把 RST 永久拉低，屏永远不复位。
-	 *   fbtft_backlight_update_status(): 亮时 set logical 1；
-	 *     背光 Q15 是 PNP 高边、拉低导通 → led-gpios 必须 GPIO_ACTIVE_LOW。
-	 *   dc 高=data → GPIO_ACTIVE_HIGH。
-	 *   buswidth=8 必填，缺省 fbtft_probe_common 报 "buswidth is not set"。
-	 *   8MHz：ST7735S SCLK 最小周期约 66ns(≈15MHz)，留裕量；可再往上试。
-	 */
+	/* ST7735S 共用 fbtft 的 fb_st7735r（v6.18 无单独 st7735s）。
+	 * 极性依 fbtft-core.c：RST/LED 低有效、DC 高有效；buswidth=8 必填。 */
 	display@0 {
 		compatible = "sitronix,st7735r";
 		reg = <0>;
@@ -630,53 +291,10 @@
 	};
 };
 
-/* 屏控制 GPIO（由上面的 display@0 交给 fbtft 驱动消费，不再单独声明节点）
- *   FPC5.3 RST = GPIOA_3   FPC5.4 RS/DC = GPIOA_4
- *   FPC5.1 LEDA 背光 = GPIOH_8 → Q15(MMBT3906 PNP 高边) → 拉低导通 = 亮
- *   ⚠ run_led 是系统心跳灯(GPIOAO_10)，与背光无关，别混用。
- */
-
-/* ==================================================================
- * GPIO —— periphs bank（&gpio = meson-g12-common.dtsi 的 bank@40）
- * ==================================================================
- * GPIOA_2 = FUSB340 SEL strap
- *
- * ⚠⚠ gpio-hog **必须**是 gpio-controller 的**子节点**：
- *   内核只在自己的 gpio controller 节点下扫 hog
- *   (drivers/gpio/gpiolib-of.c: of_gpiochip_scan_gpios() 遍历
- *    dev_of_node(&chip->gpiodev->dev) 的子节点)。
- *   挂在根节点下 → 内核根本不会看它。
- *
- * ⚠⚠ 属性名是 gpio-hog / gpios / input，
- *   之前的 `gpio-hog-controller-gpios` 上游**不存在**。
- *   且 input / output-low / output-high **必须显式三选一**，
- *   不写状态属性 = 内核报 "no hogging state specified, bailing out"
- *   并**跳过该 hog**（不是"自动变 input"）。
- *
- * 【为什么用 input 而非 output-low/output-high】
- *   SEL 电平由板上**选贴的上下拉电阻**决定，U-Boot 读它选 dtb。
- *   SoC 强驱会把 strap 电平盖掉 → 读出来永远是自己的输出值，切换逻辑失效。
- *   → input hog：只占位不驱动。
- *
- * 【input hog 的副作用】
- *   gpiod_hog() 走 gpiochip_request_own_desc()，该线被标记 REQUESTED
- *   → userspace 无法再 export 这条线（不能 echo 读写）。
- *   运行期改 SEL 只能靠方案 C（unbind/bind 控制器）或重编 DTB。
- *
- * 完整推导见 dt/meson-halo-a311d.dts 的同名段。
- */
+/* FUSB340 SEL 电平由板上选贴的上/下拉决定，U-Boot 读它选 dtb。
+ * hog 必须是 gpio-controller 的子节点，且必须显式写 input（不驱动 strap）。
+ * input hog 会占用该线，userspace 无法再 export。 */
 &gpio {
-	/* ⚠⚠ 节点名**不要**加 label！
-	 *   写成 `fusb340-sel-hog: fusb340-sel-hog {` 会编译失败：
-	 *     Error: meson-halo-a311d.dts:584.17-18 syntax error
-	 *   原因：cpp 会把 label 里的 '-' 当成减号，展开成
-	 *     `fusb340 - sel - hog: fusb340 - sel - hog {`
-	 *   dtc 先读到 'fusb340'，期待 ':' 却看到 '-' → 语法错误。
-	 *   （节点名本身带 '-' 没问题，dtc 会重新拼接；
-	 *     但 'label: node' 形式下 label 里的 '-' 会被 cpp 拆开。）
-	 *   上游 147 处 gpio-hog 用例**没有一个带 label**，本处照办。
-	 *   可读名字放 line-name。
-	 */
 	fusb340-sel-hog {
 		gpio-hog;
 		gpios = <GPIOA_2 GPIO_ACTIVE_HIGH>;
@@ -684,23 +302,6 @@
 		line-name = "FUSB340_SEL";
 	};
 };
-
-/* ==================================================================
- * I2C —— SHT40 温湿度
- * ==================================================================
- * U42 @ I2C3 (GPIOA_14=SDA / GPIOA_15=SCL, EE 域, A_3V3 供电)
- *      规格书复用名 I2C_EE_M3_SDA / I2C_EE_M3_SCL
- *      驱动确认 (drivers/pinctrl/meson/pinctrl-meson-g12a.c):
- *        216: i2c3_sda_a_pins[] = { GPIOA_14 };
- *        217: i2c3_sck_a_pins[] = { GPIOA_15 };
- *      i2c3 节点: meson-g12-common.dtsi:2373  (i2c@1c000)
- *      参照: VIM3 亦用此组 (meson-khadas-vim3.dtsi:339)
- *
- * U45 @ I2C_AO (AO 域, VDDIO_AO18 1.8V 供电)
- *
- * 注意：两颗同地址 0x44 但在**两个独立 I2C 控制器**上，合法共存。
- *       切勿挂到同一 &i2c 下（地址冲突 -> 总线锁死）。
- */
 
 /* U42 SHT40 —— I2C3 @ GPIOA_14(SDA)/GPIOA_15(SCL) */
 &i2c3 {
@@ -715,38 +316,14 @@
 	};
 };
 
-/* ==================================================================
- * I2C_AO —— AO 域 I2C 控制器（保留控制器，无挂载器件）
- * ==================================================================
- * ⚠ 这里**只保留控制器本身，不挂任何设备节点**，原因如下（依据网表
- *   netlist-dump/nl_parsed_full.json，495 元件 / 393 网络）：
- *
- * 1) U45 (SHT40) 已从 DTS 移除 —— 它的 I2C 线在网表上是**单端悬空**：
- *      I2C_AO_S0_SCL : 连接点仅 U45.2（1 个）
- *      I2C_AO_S0_SDA : 连接点仅 U45.1（1 个）
- *    即既没接到 SoC 的 AO I2C 引脚，也没有上拉电阻（对比 U42 所在的
- *    TOUCH_I2C_SCL/SDA：直连 CN2-64/62 → A311D GPIOA_15/A14）。
- *    → 这颗器件在 I2C 上根本收不到 ACK，驱动永远探测不到它，
- *      写节点只是误导。（U45 供电 VDDIO_AO18 正常，仅信号线悬空）
- *
- * 2) rtc@51 (hym8563) 已从 DTS 移除 —— 本板 495 个元件里
- *    **没有任何 RTC 芯片**（无 8563/3231/3028/DS1307 等）。
- *    该节点是从厂商 BSP (docs/vendor_dts/pro-a311d.dts:380) 抄来的，
- *    本板无对应硬件 → 留着只会让内核去 probe 一条不存在的总线。
- *
- * 保留控制器本身的意义：AO 域 I2C 引出到 CN3-69/71
- * （网络 I2C_AO_M0_SDA/SCL，经 Q13/Q14 模拟开关；两者 add_bom=no
- * 即不贴），后续若贴装外设可直接用这条控制器。
- */
+/* AO 域 I2C 控制器保留但不挂设备：U45 的 SDA/SCL 在网表上悬空，
+ * 板上也没有 RTC 芯片。 */
 &i2c_AO {
 	status = "okay";
 	pinctrl-0 = <&i2c_ao_sck_pins>, <&i2c_ao_sda_pins>;
 	pinctrl-names = "default";
 };
 
-/* ==================================================================
- * SDIO —— AP6256 (A311D 仅 1 个 SDIO 控制器)
- * ================================================================== */
 &sd_emmc_a {
 	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
@@ -757,7 +334,9 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	/* 25MHz：50MHz 下 F1 backplane 读回全 0xff（信号完整性），真机 25MHz
+	 * F1=0x15294345、wlan0 可用。不要调回 100MHz，也不要改 1-bit。 */
+	max-frequency = <25000000>;
 
 	non-removable;
 	disable-wp;
@@ -774,9 +353,6 @@
 	};
 };
 
-/* ==================================================================
- * SD 卡 (CARD1)
- * ================================================================== */
 &sd_emmc_b {
 	status = "okay";
 	pinctrl-0 = <&sdcard_c_pins>;
@@ -792,9 +368,6 @@
 	vqmmc-supply = <&vsys_3v3>;
 };
 
-/* ==================================================================
- * eMMC (核心板)
- * ================================================================== */
 &sd_emmc_c {
 	status = "okay";
 	pinctrl-0 = <&emmc_ctrl_pins>, <&emmc_data_8b_pins>, <&emmc_ds_pins>;
@@ -813,23 +386,6 @@
 	vqmmc-supply = <&emmc_1v8>;
 };
 
-/* ==================================================================
- * 显示 —— 仅 MIPI-DSI(FPC3)；CSI 摄像头未使用
- * ==================================================================
- * SPI 屏走 &spi_A + 背光 GPIO，此处不配 DSI
- */
-
-/* ==================================================================
- * 音频 —— 本板不保留（VIM3 的 TDM 声卡整块删除）
- * ==================================================================
- * 网表确认本板只有 AL_CH_P/N、AR_CH_P/N(CN1-37~43) 模拟音频通道，
- * 无外部 codec/功放 → 不需要声卡节点
- * → &tdmif_a / &tdmin_a / &tdmout_a / &toddr_a~c 全部不使能
- */
-
-/* ==================================================================
- * HDMI
- * ================================================================== */
 &hdmi_tx {
 	status = "okay";
 	pinctrl-0 = <&hdmitx_hpd_pins>, <&hdmitx_ddc_pins>;
@@ -851,9 +407,6 @@
 	hdmi-phandle = <&hdmi_tx>;
 };
 
-/* ==================================================================
- * USB —— FUSB340 切换 PCIe/USB3
- * ================================================================== */
 &usb2_phy0 {
 	phy-supply = <&dc_in>;
 };
@@ -866,122 +419,29 @@
 	phy-supply = <&vcc_5v>;
 };
 
-/* ⚠ 必须是 host，不能抄 VIM3 的 peripheral。
- * meson-g12-common.dtsi 里 &usb(usb@ffe09000) = amlogic,meson-g12a-usb-ctrl glue，
- * 两个子控制器：dwc2(usb@ff400000, dr_mode=peripheral, OTG/device) 与
- * dwc3(usb@ff500000, dr_mode=host, USB3 host)。
- * glue 的 dr_mode 决定 OTG PHY(USB2_OTG_PHY=1 → usb2_phy1) 的角色：
- * peripheral → dwc3-meson-g12a.c 的 probe() 把 otg_phy_mode 设成
- * PHY_MODE_USB_DEVICE → set_phy_mode() 清掉 U2P_R0_HOST_DEVICE(bit0)，
- * 并置 USB_R0_U2D_ACT / USB_R4_P21_SLEEP_M0 → OTG 口进 device 模式，
- * 插 U 盘/Hub 完全没有 host 枚举（这就是两条 USB 路径都不响应的根因）。
- * host → bit0 置 1，usb2_phy0 本来就被强制 host，usb3_pcie_phy 也归 dwc3，
- * OTG 口 + SL6341D Hub + 四个下行口全部走 xHCI。
- * ⚠ 不要照抄 OES 板的 phys = <&usb2_phy0>, <&usb2_phy1>：那块板把
- * usb3_pcie_phy 让给了 PCIe。本板 FUSB340 SEL=LOW 走 USB3.0，
- * 必须保留 dtsi 默认的三条 phys（含 usb3_pcie_phy PHY_TYPE_USB3）。
- * ⚠ OTG 烧录固件走 BootROM / 厂商 U-Boot 的 USB Device 协议，
- * 与 Linux 的 dr_mode 无关，改成 host 不影响烧录。
- */
-/* PCIe 模式下USB3.0 关闭（PHY 已归 pcie，见 usb3_pcie_phy 说明） */
+/* glue 的 dr_mode 决定 usb2_phy1 的 U2P_R0_HOST_DEVICE：peripheral 会让
+ * OTG 口进 device 模式，两条 USB 路径都不枚举。必须 host。 */
 &usb {
 	status = "disabled";
 	dr_mode = "host";
 };
 
-/* PCIe：默认禁用（FUSB340 SEL=0 → 物理通路在 USB3.0侧）
- * ⚠ &pcie 与 &usb 共用 usb3_pcie_phy，不能同时 okay，详见FUSB340 说明段。
- * 切 PCIe 需改 DT 重编：status="okay" 并把 FUSB340 SEL 默认电平改为高。
- */
-/* ==================================================================
- * PCIe（M.2）—— GPIOA_0/A1/GPIOC_7 + FUSB340 SEL(GPIOA_2)
- * ==================================================================
- * 【FUSB340 模式选择】
- *   .6=SEL ← R86(0Ω) ← GPIOA_2（R85/R87 4.7k 下拉，默认 LOW）
- *        LOW  → SW1 → USB3.0   ← 上电默认
- *        HIGH → SW2 → PCIe
- *   .7=OE → GND = 恒使能
- *
- * 【PCIe 控制脚（网表实测）】
- *   GPIOA_0  = PCIE_PERST    4.7k 上拉 A_3V3 (R88) + 0Ω (R92) → CN2-30
- *             →低有效复位（M.2 PERST#），DTS: reset-gpios = <... GPIO_ACTIVE_LOW>
- *   GPIOA_1  = PCIE_PEWAKE   4.7k 上拉 A_3V3 (R89) + 0Ω (R91) → CN2-32
- *             → 唤醒输入，DTS: wakeup-gpios（若内核支持）
- *   GPIOC_7  = PCIE_CLKREQ_N 4.7k **下拉 GND** (R90) + 0Ω (R93) → CN2-28
- *             → CLKREQ# 低有效，wakeup-source
- *
- * 【PHY 供电】
- *   ⚠ FUSB340 .17(VDD) ← **VSYS_3V3**（C232 1uF 去耦），恒开
- *   ⚠ U29(APCI0107, M.2) 供电来自 **NB680GD(U1/U2)**，常开无使能脚
- *   → 无 "usb_pwr"/"pcie_pwr" regulator 节点，不需 GPIO 控制
- *
- * 【为什么不能运行期热切换】
- *   A311D 的 &pcie 与 &usb 共用同一 PHY usb3_pcie_phy (phy@46000)：
- *     meson-g12-common.dtsi:164  &pcie → phys = <&usb3_pcie_phy PHY_TYPE_PCIE>
- *     meson-g12-common.dtsi:2510 &usb  → phys = <&usb3_pcie_phy PHY_TYPE_USB3>
- *   DTS 是编译期静态描述，PHY 归属编译时定死；运行中改 FUSB340 的 SEL
- *   只能改变物理通路，SoC 内部仍按 dtb 写死的一侧枚举 → 两侧不一致失效。
- *
- * 【切换方案】**冷切换（重启选 DTB），最稳**
- *   方式一（推荐）：编译两个 DTB，由 U-Boot 按 GPIOA_2 电平选 fdtfile
- *       amlogic/meson-halo-a311d.dtb        ← &usb  okay
- *       amlogic/meson-halo-a311d-pcie.dtb   ← &pcie okay
- *       ⚠ 本板**不是 extlinux**（SRC_EXTLINUX 未开），切换靠
- *         userpatches/bootscripts/boot-meson64.cmd 里的注入块
- *         （gpio read → setenv fdtfile），详见 docs/冷切换使用说明.md
- *   方式二：单 DTB + U-Boot 脚本读 GPIOA_2 电平动态注入
- *       if gpio get 2; then fdt set /pcie@fc000000 status "okay";
- *                            fdt set /usb@fc00000 status "disabled";
- *                       else   fdt set /usb@fc00000 status "okay";
- *                            fdt set /pcie@fc000000 status "disabled"; fi
- *
- *   GPIOA_2 用 gpio-hog 占位（&gpio 下的 fusb340-sel-hog，**input** hog，
- *   line-name="FUSB340_SEL"），只占位不驱动 strap。
- *   ⚠ input hog 会把该线标记为内核 REQUESTED → userspace **不能**
- *     再 export 读写它（不能 echo）。运行期切 SEL 只能靠方案 C
- *     （unbind/bind 控制器）或重编 DTB。
- *
- * 【当前配置】本文件为 PCIe 模式：&pcie okay / &usb disabled
- *   USB3.0 变体见 dt/meson-halo-a311d.dts（&usb okay / &pcie disabled）
- */
-/* PCIe 模式启用（本变体）
- * reset: M.2 PERST# = GPIOA_0，4.7k 上拉 A_3V3，低有效
- *        参考 VIM3 用 GPIOA_8，本板实测为 GPIOA_0
- */
+/* M.2 PERST# = GPIOA_0，4.7k 上拉，低有效 */
 &pcie {
 	status = "okay";
 	reset-gpios = <&gpio GPIOA_0 GPIO_ACTIVE_LOW>;
 
-	/* ⚠ 从 PCIe 唤醒（PEWAKE / CLKREQ#）**当前无法在 DT 里启用**：
-	 *   dw-pcie 驱动根本不读 wakeup-gpios（v6.18 全树 drivers/pci 下
-	 *   0 处引用），PCI 绑定文档也没列这个属性。
-	 *   → 写上去也只是被忽略，不会报错，但会误导后来人，故保持注释。
-	 *
-	 * 若内核/设备支持从 PCIe 唤醒，再启用以下两项：
-	 *   wakeup-gpios = <&gpio GPIOA_1 GPIO_ACTIVE_HIGH>;  // PEWAKE (4.7k上拉)
-	 *   wakeup-source;                                     // CLKREQ# (GPIOC_7, 4.7k下拉)
-	 */
+	/* dw-pcie 不读 wakeup-gpios，保持注释 */
 };
 
-/* ==================================================================
- * 串口
- * ================================================================== */
 &uart_A {
 	status = "okay";
 	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
 	pinctrl-names = "default";
 	uart-has-rtscts;
 
-	/* AP6256 蓝牙：BT_REG_ON(U40.34) 经 R147(47k→GND) + R145(33k)
-	 * 由 GPIOA_13(CN2-58 / BT_EN_3V3) 驱动：3.3 × 47/(33+47) ≈ 1.94V。
-	 * ⚠ 不写 shutdown-gpios 时 GPIOA_13 被 47k 下拉，BT_REG_ON = 0，
-	 *   BT 永远在复位 → `hci0: BCM: Reset failed (-110)`。
-	 * hci_bcm.c:1050 bcm_gpio_set_shutdown(dev, powered) 里
-	 *   gpiod_set_value(shutdown, powered)，powered=1 即逻辑 1 = active，
-	 *   所以这里必须 GPIO_ACTIVE_HIGH（物理高 = BT_REG_ON 有效）。
-	 * ⚠ GPIOA_13 在本板 dts 未被其它功能占用；真机 debugfs gpio 中
-	 *   该线（periphs 偏移 62）未出现在已 request 列表里。
-	 */
+	/* BT_REG_ON 由 GPIOA_13 驱动；缺 shutdown-gpios 时该脚被下拉，
+	 * BT 永远在复位（BCM: Reset failed -110）。hci_bcm.c 需 ACTIVE_HIGH。 */
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
 		max-speed = <2000000>;
@@ -997,9 +457,6 @@
 	pinctrl-names = "default";
 };
 
-/* ==================================================================
- * 其他（VIM3 骨架保留）
- * ================================================================== */
 &arb {
 	status = "okay";
 };
@@ -1024,15 +481,3 @@
 &spifc {
 	status = "disabled";
 };
-
-/* ==================================================================
- * 屏蔽项（本板无对应硬件）
- * ==================================================================
- * &csi / &csi2   —— 摄像头未使用
- * &dsi           —— 改用 SPI 屏，不接MIPI 显示
- * &ir            —— 改用 gpio-ir-receiver（厂商 ir 节点配 rc-map）
- * adc-keys       —— SARADC 悬空 + SW5 未贴
- * gpio-keys      —— 按键全非 GPIO 直连
- * khadas_mcu / tca6408 —— 本板无 MCU 与 GPIO扩展器
- * pdm_codec / dummy_codec / eqdrc / frddr / toddr / tdm* —— 音频不保留
- */
